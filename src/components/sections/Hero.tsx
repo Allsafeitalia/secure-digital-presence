@@ -59,7 +59,7 @@ export const Hero = () => {
             transition={{ duration: 0.6 }}
           >
             <span className="inline-block px-4 py-2 rounded-full bg-secondary text-primary text-sm font-medium mb-6">
-              Consulente IT
+              Security Specialist & Full-Stack Developer
             </span>
           </motion.div>
 
@@ -69,8 +69,8 @@ export const Hero = () => {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="font-display text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight mb-6"
           >
-            Sicurezza, Sistemi e{" "}
-            <span className="text-gradient">Soluzioni Web</span>
+            Ciao, sono{" "}
+            <span className="text-gradient">Giuseppe Mastronardi</span>
           </motion.h1>
 
           <motion.p
@@ -79,8 +79,8 @@ export const Hero = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-muted-foreground text-lg md:text-xl lg:text-2xl mb-10 max-w-2xl mx-auto leading-relaxed"
           >
-            Aiuto aziende e professionisti a lavorare online in modo sicuro e
-            stabile. Dalla gestione server alla realizzazione di siti web.
+            Consulente IT certificato che aiuta le aziende a proteggere la loro infrastruttura, 
+            ottimizzare i sistemi e sviluppare soluzioni web performanti.
           </motion.p>
 
           <motion.div
@@ -107,15 +107,15 @@ export const Hero = () => {
           >
             <div className="flex items-center gap-2">
               <Shield size={18} className="text-primary" />
-              <span>Sicurezza Certificata</span>
+              <span>CompTIA Security+</span>
             </div>
             <div className="flex items-center gap-2">
               <Server size={18} className="text-primary" />
-              <span>Infrastruttura Affidabile</span>
+              <span>Sistemista UNIX</span>
             </div>
             <div className="flex items-center gap-2">
               <Code size={18} className="text-primary" />
-              <span>Soluzioni su Misura</span>
+              <span>Full-Stack Developer</span>
             </div>
           </motion.div>
         </div>

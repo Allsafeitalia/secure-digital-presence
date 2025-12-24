@@ -53,7 +53,7 @@ export const Navbar = () => {
             className="font-display font-bold text-xl lg:text-2xl text-foreground hover:text-primary transition-colors"
             whileHover={{ scale: 1.02 }}
           >
-            <span className="text-gradient">IT</span>Consulente
+            <span className="text-gradient">giuseppe</span>mastronardi.dev
           </motion.a>
 
           {/* Desktop Navigation */}

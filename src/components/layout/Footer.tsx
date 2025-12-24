@@ -24,7 +24,7 @@ export const Footer = () => {
             className="font-display font-bold text-xl text-foreground hover:text-primary transition-colors"
             whileHover={{ scale: 1.02 }}
           >
-            <span className="text-gradient">IT</span>Consulente
+            <span className="text-gradient">giuseppe</span>mastronardi.dev
           </motion.a>
 
           {/* Navigation */}
