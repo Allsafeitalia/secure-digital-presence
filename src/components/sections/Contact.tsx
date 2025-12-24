@@ -4,8 +4,9 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Mail, Send, CheckCircle } from "lucide-react";
+import { Mail, Send, CheckCircle, MessageCircle, Phone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Contact = () => {
   const ref = useRef(null);
@@ -13,27 +14,63 @@ export const Contact = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    subject: "",
+    message: "",
+  });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    setIsSubmitting(false);
-    setIsSubmitted(true);
-    toast({
-      title: "Messaggio inviato!",
-      description: "Ti risponderò il prima possibile.",
+    const { error } = await supabase.from("contact_tickets").insert({
+      name: formData.name,
+      email: formData.email,
+      subject: formData.subject,
+      message: formData.message,
     });
 
-    // Reset form after delay
-    setTimeout(() => {
-      setIsSubmitted(false);
-      (e.target as HTMLFormElement).reset();
-    }, 3000);
+    setIsSubmitting(false);
+
+    if (error) {
+      console.error("Error submitting ticket:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore. Riprova più tardi.",
+        variant: "destructive",
+      });
+    } else {
+      setIsSubmitted(true);
+      toast({
+        title: "Messaggio inviato!",
+        description: "Ti risponderò il prima possibile.",
+      });
+
+      setTimeout(() => {
+        setIsSubmitted(false);
+        setFormData({ name: "", email: "", subject: "", message: "" });
+      }, 3000);
+    }
   };
+
+  const contactInfo = [
+    {
+      icon: MessageCircle,
+      label: "WhatsApp",
+      value: "+39 328 268 4828",
+      href: "https://wa.me/393282684828",
+      color: "text-green-500",
+    },
+    {
+      icon: Mail,
+      label: "Email",
+      value: "me@giuseppemastronardi.dev",
+      href: "mailto:me@giuseppemastronardi.dev",
+      color: "text-primary",
+    },
+  ];
 
   return (
     <section id="contatti" className="py-24 lg:py-32 bg-secondary/30 relative">
@@ -55,11 +92,40 @@ export const Contact = () => {
             Parliamo del tuo <span className="text-gradient">progetto</span>
           </h2>
           <p className="text-muted-foreground text-lg">
-            Hai bisogno di un consiglio o vuoi discutere un progetto? Scrivimi
-            e ti risponderò rapidamente.
+            Hai bisogno di un consiglio o vuoi discutere un progetto? Contattami
+            direttamente o compila il form.
           </p>
         </motion.div>
 
+        {/* Contact Cards */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto mb-12"
+        >
+          {contactInfo.map((contact, index) => (
+            <a
+              key={index}
+              href={contact.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-card border border-border rounded-2xl p-6 card-shadow hover:border-primary/50 transition-all group flex items-center gap-4"
+            >
+              <div className={`w-12 h-12 rounded-xl bg-secondary flex items-center justify-center ${contact.color}`}>
+                <contact.icon className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">{contact.label}</p>
+                <p className="font-medium group-hover:text-primary transition-colors">
+                  {contact.value}
+                </p>
+              </div>
+            </a>
+          ))}
+        </motion.div>
+
+        {/* Contact Form */}
         <div className="max-w-2xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -67,6 +133,15 @@ export const Contact = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="bg-card border border-border rounded-2xl p-8 lg:p-10 card-shadow"
           >
+            <div className="text-center mb-8">
+              <h3 className="font-display text-xl font-bold mb-2">
+                Oppure invia un messaggio
+              </h3>
+              <p className="text-muted-foreground text-sm">
+                Riceverò la tua richiesta come ticket e ti risponderò al più presto
+              </p>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
@@ -81,6 +156,10 @@ export const Contact = () => {
                     name="name"
                     type="text"
                     required
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     placeholder="Il tuo nome"
                     className="bg-secondary/50 border-border focus:border-primary"
                   />
@@ -97,6 +176,10 @@ export const Contact = () => {
                     name="email"
                     type="email"
                     required
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
                     placeholder="tua@email.it"
                     className="bg-secondary/50 border-border focus:border-primary"
                   />
@@ -115,6 +198,10 @@ export const Contact = () => {
                   name="subject"
                   type="text"
                   required
+                  value={formData.subject}
+                  onChange={(e) =>
+                    setFormData({ ...formData, subject: e.target.value })
+                  }
                   placeholder="Di cosa hai bisogno?"
                   className="bg-secondary/50 border-border focus:border-primary"
                 />
@@ -132,6 +219,10 @@ export const Contact = () => {
                   name="message"
                   required
                   rows={5}
+                  value={formData.message}
+                  onChange={(e) =>
+                    setFormData({ ...formData, message: e.target.value })
+                  }
                   placeholder="Descrivi brevemente il tuo progetto o la tua richiesta..."
                   className="bg-secondary/50 border-border focus:border-primary resize-none"
                 />
@@ -162,20 +253,6 @@ export const Contact = () => {
                 )}
               </Button>
             </form>
-
-            {/* Email Alternative */}
-            <div className="mt-8 pt-8 border-t border-border text-center">
-              <p className="text-muted-foreground text-sm mb-3">
-                Preferisci scrivere direttamente?
-              </p>
-              <a
-                href="mailto:info@tuoemail.it"
-                className="inline-flex items-center gap-2 text-primary hover:underline"
-              >
-                <Mail size={18} />
-                info@tuoemail.it
-              </a>
-            </div>
           </motion.div>
         </div>
       </div>
