@@ -7,12 +7,17 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
+import { useChristmasTheme } from "./hooks/useChristmasTheme";
+import { ChristmasEffects } from "./components/ChristmasEffects";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+const AppContent = () => {
+  const isChristmas = useChristmasTheme();
+  
+  return (
+    <>
+      {isChristmas && <ChristmasEffects />}
       <Toaster />
       <Sonner />
       <BrowserRouter>
@@ -24,6 +29,14 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
+    </>
+  );
+};
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <AppContent />
     </TooltipProvider>
   </QueryClientProvider>
 );
