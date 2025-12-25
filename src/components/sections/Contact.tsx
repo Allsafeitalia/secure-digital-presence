@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Mail, Send, CheckCircle, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { z } from "zod";
 import {
   Select,
   SelectContent,
@@ -14,6 +15,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+// Validation schema with length limits and format validation
+const contactSchema = z.object({
+  name: z.string()
+    .trim()
+    .min(1, "Il nome è obbligatorio")
+    .max(100, "Il nome non può superare 100 caratteri"),
+  email: z.string()
+    .trim()
+    .email("Inserisci un indirizzo email valido")
+    .max(255, "L'email non può superare 255 caratteri"),
+  phone: z.string()
+    .max(20, "Il numero di telefono non può superare 20 caratteri")
+    .regex(/^[\d\s]*$/, "Il numero può contenere solo cifre")
+    .optional()
+    .or(z.literal("")),
+  subject: z.string()
+    .trim()
+    .min(1, "L'oggetto è obbligatorio")
+    .max(200, "L'oggetto non può superare 200 caratteri"),
+  message: z.string()
+    .trim()
+    .min(1, "Il messaggio è obbligatorio")
+    .max(5000, "Il messaggio non può superare 5000 caratteri"),
+});
 
 const countryCodes = [
   { code: "+39", country: "Italia", flag: "🇮🇹" },
@@ -42,6 +68,7 @@ export const Contact = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [countryCode, setCountryCode] = useState("+39");
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -53,10 +80,10 @@ export const Contact = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setFormErrors({});
     
     // Bot detection: if honeypot field is filled, silently reject
     if (formData.honeypot) {
-      console.log("Bot detected");
       setIsSubmitted(true);
       setTimeout(() => {
         setIsSubmitted(false);
@@ -66,23 +93,47 @@ export const Contact = () => {
       return;
     }
 
+    // Validate form data with zod
+    const validationResult = contactSchema.safeParse({
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      subject: formData.subject,
+      message: formData.message,
+    });
+
+    if (!validationResult.success) {
+      const errors: Record<string, string> = {};
+      validationResult.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          errors[err.path[0].toString()] = err.message;
+        }
+      });
+      setFormErrors(errors);
+      toast({
+        title: "Errore di validazione",
+        description: "Controlla i campi evidenziati",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     // Combine country code with phone number if phone is provided
     const fullPhone = formData.phone ? `${countryCode} ${formData.phone}` : null;
 
     const { error } = await supabase.from("contact_tickets").insert({
-      name: formData.name,
-      email: formData.email,
+      name: validationResult.data.name,
+      email: validationResult.data.email,
       phone: fullPhone,
-      subject: formData.subject,
-      message: formData.message,
+      subject: validationResult.data.subject,
+      message: validationResult.data.message,
     });
 
     setIsSubmitting(false);
 
     if (error) {
-      console.error("Error submitting ticket:", error);
       toast({
         title: "Errore",
         description: "Si è verificato un errore. Riprova più tardi.",
@@ -99,6 +150,7 @@ export const Contact = () => {
         setIsSubmitted(false);
         setFormData({ name: "", email: "", phone: "", subject: "", message: "", honeypot: "" });
         setCountryCode("+39");
+        setFormErrors({});
       }, 3000);
     }
   };
@@ -220,13 +272,17 @@ export const Contact = () => {
                     name="name"
                     type="text"
                     required
+                    maxLength={100}
                     value={formData.name}
                     onChange={(e) =>
                       setFormData({ ...formData, name: e.target.value })
                     }
                     placeholder="Il tuo nome"
-                    className="bg-secondary/50 border-border focus:border-primary"
+                    className={`bg-secondary/50 border-border focus:border-primary ${formErrors.name ? 'border-destructive' : ''}`}
                   />
+                  {formErrors.name && (
+                    <p className="text-destructive text-xs mt-1">{formErrors.name}</p>
+                  )}
                 </div>
                 <div>
                   <label
@@ -240,13 +296,17 @@ export const Contact = () => {
                     name="email"
                     type="email"
                     required
+                    maxLength={255}
                     value={formData.email}
                     onChange={(e) =>
                       setFormData({ ...formData, email: e.target.value })
                     }
                     placeholder="tua@email.it"
-                    className="bg-secondary/50 border-border focus:border-primary"
+                    className={`bg-secondary/50 border-border focus:border-primary ${formErrors.email ? 'border-destructive' : ''}`}
                   />
+                  {formErrors.email && (
+                    <p className="text-destructive text-xs mt-1">{formErrors.email}</p>
+                  )}
                 </div>
                 <div className="md:col-span-2">
                   <label
@@ -298,13 +358,17 @@ export const Contact = () => {
                   name="subject"
                   type="text"
                   required
+                  maxLength={200}
                   value={formData.subject}
                   onChange={(e) =>
                     setFormData({ ...formData, subject: e.target.value })
                   }
                   placeholder="Di cosa hai bisogno?"
-                  className="bg-secondary/50 border-border focus:border-primary"
+                  className={`bg-secondary/50 border-border focus:border-primary ${formErrors.subject ? 'border-destructive' : ''}`}
                 />
+                {formErrors.subject && (
+                  <p className="text-destructive text-xs mt-1">{formErrors.subject}</p>
+                )}
               </div>
 
               <div>
@@ -319,13 +383,17 @@ export const Contact = () => {
                   name="message"
                   required
                   rows={5}
+                  maxLength={5000}
                   value={formData.message}
                   onChange={(e) =>
                     setFormData({ ...formData, message: e.target.value })
                   }
                   placeholder="Descrivi brevemente il tuo progetto o la tua richiesta..."
-                  className="bg-secondary/50 border-border focus:border-primary resize-none"
+                  className={`bg-secondary/50 border-border focus:border-primary resize-none ${formErrors.message ? 'border-destructive' : ''}`}
                 />
+                {formErrors.message && (
+                  <p className="text-destructive text-xs mt-1">{formErrors.message}</p>
+                )}
               </div>
 
               <Button

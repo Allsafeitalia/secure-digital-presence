@@ -66,11 +66,18 @@ const Auth = () => {
     setIsLoading(false);
 
     if (error) {
+      // Map known errors to safe messages, use generic message for unknown errors
+      const safeErrorMessages: Record<string, string> = {
+        'Invalid login credentials': 'Credenziali non valide',
+        'Email not confirmed': 'Verifica la tua email prima di accedere',
+        'User not found': 'Credenziali non valide',
+        'Too many requests': 'Troppi tentativi. Riprova più tardi.',
+      };
+      const safeMessage = safeErrorMessages[error.message] || 'Si è verificato un errore. Riprova più tardi.';
+      
       toast({
         title: "Errore di accesso",
-        description: error.message === "Invalid login credentials" 
-          ? "Credenziali non valide" 
-          : error.message,
+        description: safeMessage,
         variant: "destructive",
       });
     } else {
