@@ -55,13 +55,12 @@ export const Footer = () => {
               href="https://giuseppemastronardi.dev" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-primary hover:underline inline-flex items-center gap-1"
+              className="hover:underline inline-flex items-center gap-1 font-semibold"
             >
-              <span className="relative">
-                🎅
-                <span className="absolute -top-1 -right-1 text-xs">🎄</span>
-              </span>
-              giuseppemastronardi.dev
+              🎅
+              <span className="text-red-500">giuseppe</span>
+              <span className="text-white">mastronardi</span>
+              <span className="text-red-500">.dev</span>
             </a>
           </p>
         </div>
