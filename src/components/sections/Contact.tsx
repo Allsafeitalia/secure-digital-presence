@@ -4,9 +4,36 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Mail, Send, CheckCircle, MessageCircle, Phone } from "lucide-react";
+import { Mail, Send, CheckCircle, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const countryCodes = [
+  { code: "+39", country: "Italia", flag: "🇮🇹" },
+  { code: "+1", country: "USA/Canada", flag: "🇺🇸" },
+  { code: "+44", country: "Regno Unito", flag: "🇬🇧" },
+  { code: "+49", country: "Germania", flag: "🇩🇪" },
+  { code: "+33", country: "Francia", flag: "🇫🇷" },
+  { code: "+34", country: "Spagna", flag: "🇪🇸" },
+  { code: "+41", country: "Svizzera", flag: "🇨🇭" },
+  { code: "+43", country: "Austria", flag: "🇦🇹" },
+  { code: "+32", country: "Belgio", flag: "🇧🇪" },
+  { code: "+31", country: "Paesi Bassi", flag: "🇳🇱" },
+  { code: "+351", country: "Portogallo", flag: "🇵🇹" },
+  { code: "+48", country: "Polonia", flag: "🇵🇱" },
+  { code: "+30", country: "Grecia", flag: "🇬🇷" },
+  { code: "+40", country: "Romania", flag: "🇷🇴" },
+  { code: "+385", country: "Croazia", flag: "🇭🇷" },
+  { code: "+386", country: "Slovenia", flag: "🇸🇮" },
+  { code: "+420", country: "Rep. Ceca", flag: "🇨🇿" },
+];
 
 export const Contact = () => {
   const ref = useRef(null);
@@ -14,22 +41,40 @@ export const Contact = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [countryCode, setCountryCode] = useState("+39");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
     subject: "",
     message: "",
+    honeypot: "", // Anti-bot honeypot field
   });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    // Bot detection: if honeypot field is filled, silently reject
+    if (formData.honeypot) {
+      console.log("Bot detected");
+      setIsSubmitted(true);
+      setTimeout(() => {
+        setIsSubmitted(false);
+        setFormData({ name: "", email: "", phone: "", subject: "", message: "", honeypot: "" });
+        setCountryCode("+39");
+      }, 3000);
+      return;
+    }
+
     setIsSubmitting(true);
+
+    // Combine country code with phone number if phone is provided
+    const fullPhone = formData.phone ? `${countryCode} ${formData.phone}` : null;
 
     const { error } = await supabase.from("contact_tickets").insert({
       name: formData.name,
       email: formData.email,
-      phone: formData.phone || null,
+      phone: fullPhone,
       subject: formData.subject,
       message: formData.message,
     });
@@ -52,7 +97,8 @@ export const Contact = () => {
 
       setTimeout(() => {
         setIsSubmitted(false);
-        setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+        setFormData({ name: "", email: "", phone: "", subject: "", message: "", honeypot: "" });
+        setCountryCode("+39");
       }, 3000);
     }
   };
@@ -145,6 +191,22 @@ export const Contact = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Honeypot field - hidden from users, visible to bots */}
+              <div className="absolute -left-[9999px]" aria-hidden="true">
+                <label htmlFor="website">Website</label>
+                <input
+                  type="text"
+                  id="website"
+                  name="website"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={formData.honeypot}
+                  onChange={(e) =>
+                    setFormData({ ...formData, honeypot: e.target.value })
+                  }
+                />
+              </div>
+
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
                   <label
@@ -186,24 +248,41 @@ export const Contact = () => {
                     className="bg-secondary/50 border-border focus:border-primary"
                   />
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <label
                     htmlFor="phone"
                     className="block text-sm font-medium mb-2"
                   >
                     WhatsApp (opzionale)
                   </label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
-                    }
-                    placeholder="+39 xxx xxx xxxx"
-                    className="bg-secondary/50 border-border focus:border-primary"
-                  />
+                  <div className="flex gap-2">
+                    <Select value={countryCode} onValueChange={setCountryCode}>
+                      <SelectTrigger className="w-[140px] bg-secondary/50 border-border">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border z-50">
+                        {countryCodes.map((country) => (
+                          <SelectItem key={country.code} value={country.code}>
+                            <span className="flex items-center gap-2">
+                              <span>{country.flag}</span>
+                              <span>{country.code}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value.replace(/[^\d\s]/g, '') })
+                      }
+                      placeholder="328 123 4567"
+                      className="flex-1 bg-secondary/50 border-border focus:border-primary"
+                    />
+                  </div>
                 </div>
               </div>
 
