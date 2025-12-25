@@ -14,22 +14,45 @@ const Auth = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    const checkAdminRole = async (userId: string) => {
+      const { data } = await supabase.rpc('has_role', { 
+        _user_id: userId, 
+        _role: 'admin' 
+      });
+      return data === true;
+    };
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (session) {
-          navigate("/admin");
+          setTimeout(async () => {
+            const isAdmin = await checkAdminRole(session.user.id);
+            if (isAdmin) {
+              navigate("/admin");
+            } else {
+              toast({
+                title: "Accesso negato",
+                description: "Non hai i permessi di amministratore",
+                variant: "destructive",
+              });
+              await supabase.auth.signOut();
+            }
+          }, 0);
         }
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
-        navigate("/admin");
+        const isAdmin = await checkAdminRole(session.user.id);
+        if (isAdmin) {
+          navigate("/admin");
+        }
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
