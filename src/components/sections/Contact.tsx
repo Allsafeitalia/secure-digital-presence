@@ -17,6 +17,7 @@ export const Contact = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    phone: "",
     subject: "",
     message: "",
   });
@@ -28,6 +29,7 @@ export const Contact = () => {
     const { error } = await supabase.from("contact_tickets").insert({
       name: formData.name,
       email: formData.email,
+      phone: formData.phone || null,
       subject: formData.subject,
       message: formData.message,
     });
@@ -50,7 +52,7 @@ export const Contact = () => {
 
       setTimeout(() => {
         setIsSubmitted(false);
-        setFormData({ name: "", email: "", subject: "", message: "" });
+        setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
       }, 3000);
     }
   };
@@ -181,6 +183,25 @@ export const Contact = () => {
                       setFormData({ ...formData, email: e.target.value })
                     }
                     placeholder="tua@email.it"
+                    className="bg-secondary/50 border-border focus:border-primary"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="phone"
+                    className="block text-sm font-medium mb-2"
+                  >
+                    WhatsApp (opzionale)
+                  </label>
+                  <Input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phone: e.target.value })
+                    }
+                    placeholder="+39 xxx xxx xxxx"
                     className="bg-secondary/50 border-border focus:border-primary"
                   />
                 </div>

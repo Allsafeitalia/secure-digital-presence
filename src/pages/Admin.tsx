@@ -13,6 +13,8 @@ import {
   Calendar,
   X,
   RefreshCw,
+  Phone,
+  MessageCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -21,6 +23,7 @@ interface ContactTicket {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
   subject: string;
   message: string;
   status: "open" | "closed";
@@ -409,6 +412,22 @@ const Admin = () => {
                     })}
                   </p>
                 </div>
+                {selectedTicket.phone && (
+                  <div className="bg-secondary/30 rounded-xl p-4">
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+                      <Phone size={16} />
+                      WhatsApp
+                    </div>
+                    <a
+                      href={`https://wa.me/${selectedTicket.phone.replace(/\D/g, "")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-green-500 hover:underline"
+                    >
+                      {selectedTicket.phone}
+                    </a>
+                  </div>
+                )}
               </div>
 
               {/* Message */}
@@ -419,7 +438,6 @@ const Admin = () => {
                 </p>
               </div>
 
-              {/* Quick Actions */}
               <div className="mt-6 flex gap-3">
                 <Button
                   variant="outline"
@@ -430,18 +448,21 @@ const Admin = () => {
                   <Mail size={18} />
                   Rispondi via Email
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    window.open(
-                      `https://wa.me/${selectedTicket.email.includes("@") ? "" : selectedTicket.email}`,
-                      "_blank"
-                    )
-                  }
-                  className="text-green-600 border-green-600 hover:bg-green-600/10"
-                >
-                  Rispondi via WhatsApp
-                </Button>
+                {selectedTicket.phone && (
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      window.open(
+                        `https://wa.me/${selectedTicket.phone!.replace(/\D/g, "")}`,
+                        "_blank"
+                      )
+                    }
+                    className="text-green-600 border-green-600 hover:bg-green-600/10"
+                  >
+                    <MessageCircle size={18} />
+                    Rispondi via WhatsApp
+                  </Button>
+                )}
               </div>
             </div>
           ) : (
