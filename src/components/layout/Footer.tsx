@@ -50,7 +50,15 @@ export const Footer = () => {
 
           {/* Copyright */}
           <p className="text-sm text-muted-foreground">
-            © {currentYear} Tutti i diritti riservati
+            © {currentYear} Made with ❤️ by{" "}
+            <a 
+              href="https://giuseppemastronardi.dev" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              giuseppemastronardi.dev
+            </a>
           </p>
         </div>
       </div>
