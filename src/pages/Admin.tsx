@@ -37,22 +37,54 @@ const Admin = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    const checkAdminRole = async (userId: string) => {
+      const { data } = await supabase.rpc('has_role', { 
+        _user_id: userId, 
+        _role: 'admin' 
+      });
+      return data === true;
+    };
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (!session) {
           navigate("/auth");
+        } else {
+          setTimeout(async () => {
+            const isAdmin = await checkAdminRole(session.user.id);
+            if (!isAdmin) {
+              toast({
+                title: "Accesso negato",
+                description: "Non hai i permessi di amministratore",
+                variant: "destructive",
+              });
+              await supabase.auth.signOut();
+              navigate("/auth");
+            }
+          }, 0);
         }
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) {
         navigate("/auth");
+      } else {
+        const isAdmin = await checkAdminRole(session.user.id);
+        if (!isAdmin) {
+          toast({
+            title: "Accesso negato",
+            description: "Non hai i permessi di amministratore",
+            variant: "destructive",
+          });
+          await supabase.auth.signOut();
+          navigate("/auth");
+        }
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, toast]);
 
   useEffect(() => {
     fetchTickets();
