@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ChristmasLights } from "@/components/ChristmasLights";
 
 const navLinks = [
   { name: "Home", href: "#home" },
@@ -11,9 +12,17 @@ const navLinks = [
   { name: "Contatti", href: "#contatti" },
 ];
 
+// Check if we're in Christmas period
+const isChristmasPeriod = () => {
+  const now = new Date();
+  const christmasEnd = new Date('2026-01-06T23:59:59');
+  return now <= christmasEnd;
+};
+
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showChristmasLights] = useState(isChristmasPeriod());
 
   useEffect(() => {
     const handleScroll = () => {
@@ -41,6 +50,8 @@ export const Navbar = () => {
           : "bg-transparent"
       }`}
     >
+      {/* Christmas Lights */}
+      {showChristmasLights && <ChristmasLights />}
       <div className="container mx-auto px-4 lg:px-8">
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
