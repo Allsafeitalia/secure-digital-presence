@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, User, LayoutDashboard, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { Link } from "react-router-dom";
+import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
 const navLinks = [
   { name: "Home", href: "#home" },
@@ -14,6 +17,8 @@ const navLinks = [
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -21,6 +26,20 @@ export const Navbar = () => {
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      setIsClient(session?.user?.user_metadata?.is_client === true);
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setIsClient(session?.user?.user_metadata?.is_client === true);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const scrollToSection = (href: string) => {
@@ -71,6 +90,24 @@ export const Navbar = () => {
                 {link.name}
               </a>
             ))}
+            
+            {/* Auth Button */}
+            {user && isClient ? (
+              <Link to="/client-portal">
+                <Button variant="outline" size="sm">
+                  <LayoutDashboard className="w-4 h-4 mr-2" />
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/client-login">
+                <Button variant="outline" size="sm">
+                  <User className="w-4 h-4 mr-2" />
+                  Area Clienti
+                </Button>
+              </Link>
+            )}
+            
             <Button
               variant="hero"
               size="sm"
@@ -114,6 +151,24 @@ export const Navbar = () => {
                   {link.name}
                 </a>
               ))}
+              
+              {/* Mobile Auth Button */}
+              {user && isClient ? (
+                <Link to="/client-portal" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="outline" className="w-full justify-start">
+                    <LayoutDashboard className="w-4 h-4 mr-2" />
+                    Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <Link to="/client-login" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="outline" className="w-full justify-start">
+                    <User className="w-4 h-4 mr-2" />
+                    Area Clienti
+                  </Button>
+                </Link>
+              )}
+              
               <Button
                 variant="hero"
                 className="mt-2"
