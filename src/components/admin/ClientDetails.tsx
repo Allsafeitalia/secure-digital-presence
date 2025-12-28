@@ -303,10 +303,18 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
 
       if (error) throw error;
 
-      toast({
-        title: "Credenziali inviate",
-        description: `Nuove credenziali inviate a ${client.email}`,
-      });
+      // Check if user already exists (they need to use forgot password)
+      if (data?.userExists) {
+        toast({
+          title: "Utente esistente",
+          description: "Il cliente ha già un account. Può usare 'Password dimenticata' nella pagina di login.",
+        });
+      } else {
+        toast({
+          title: "Invito inviato",
+          description: `Email di invito inviata a ${client.email}`,
+        });
+      }
     } catch (error: any) {
       console.error("Error resending credentials:", error);
 
@@ -383,23 +391,23 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
                 {isResendingCredentials ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <KeyRound className="w-4 h-4" />
+                  <Mail className="w-4 h-4" />
                 )}
-                <span className="hidden sm:inline ml-1">Reinvia Credenziali</span>
+                <span className="hidden sm:inline ml-1">Invia Invito</span>
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Reinviare le credenziali?</AlertDialogTitle>
+                <AlertDialogTitle>Inviare invito?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Verrà generata una nuova password temporanea e inviata a <strong>{client.email}</strong>. 
-                  La vecchia password non sarà più valida.
+                  Verrà inviata un'email a <strong>{client.email}</strong> con un link per impostare la propria password.
+                  {" "}Se il cliente ha già un account, verrà informato di usare la funzione "Password dimenticata".
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Annulla</AlertDialogCancel>
                 <AlertDialogAction onClick={resendCredentials}>
-                  Invia Nuove Credenziali
+                  Invia Invito
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
