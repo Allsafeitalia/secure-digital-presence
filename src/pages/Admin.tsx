@@ -38,7 +38,7 @@ interface ContactTicket {
 
 interface Client {
   id: string;
-  ticket_id: string | null;
+  ticket_id?: string | null;
   name: string;
   email: string;
   phone: string | null;
@@ -53,6 +53,7 @@ interface Client {
   country: string | null;
   notes: string | null;
   created_at: string;
+  is_active?: boolean;
 }
 
 type ViewMode = "tickets" | "clients";
@@ -503,11 +504,16 @@ const Admin = () => {
                         onClick={() => setSelectedClient(client)}
                         className={`w-full p-4 text-left hover:bg-secondary/50 transition-colors ${
                           selectedClient?.id === client.id ? "bg-secondary" : ""
-                        }`}
+                        } ${client.is_active === false ? "opacity-60" : ""}`}
                       >
                         <div className="flex items-center gap-3 mb-1">
-                          <Building2 className="w-4 h-4 text-primary" />
-                          <span className="font-medium truncate">{client.name}</span>
+                          <Building2 className={`w-4 h-4 ${client.is_active === false ? "text-muted-foreground" : "text-primary"}`} />
+                          <span className="font-medium truncate flex-1">{client.name}</span>
+                          {client.is_active === false && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] bg-muted text-muted-foreground">
+                              OFF
+                            </span>
+                          )}
                         </div>
                         {client.ragione_sociale && (
                           <p className="text-sm text-muted-foreground truncate mb-1 ml-7">
@@ -699,6 +705,10 @@ const Admin = () => {
             <ClientDetails
               client={selectedClient}
               onBack={() => setSelectedClient(null)}
+              onClientUpdate={(updatedClient) => {
+                setSelectedClient(updatedClient);
+                setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
+              }}
             />
           ) : (
             <div className="h-full flex items-center justify-center text-muted-foreground">

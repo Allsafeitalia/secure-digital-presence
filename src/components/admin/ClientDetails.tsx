@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Building2,
   Mail,
@@ -17,10 +18,12 @@ import {
   Euro,
   ArrowLeft,
   Edit,
+  Power,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { AddServiceModal } from "./AddServiceModal";
+import { EditClientModal } from "./EditClientModal";
 import type { Database } from "@/integrations/supabase/types";
 
 type ServiceType = Database["public"]["Enums"]["service_type"];
@@ -29,6 +32,7 @@ type ServiceStatus = Database["public"]["Enums"]["service_status"];
 
 interface Client {
   id: string;
+  ticket_id?: string | null;
   name: string;
   email: string;
   phone: string | null;
@@ -43,6 +47,7 @@ interface Client {
   country: string | null;
   notes: string | null;
   created_at: string;
+  is_active?: boolean;
 }
 
 interface ClientService {
@@ -64,6 +69,7 @@ interface ClientService {
 interface ClientDetailsProps {
   client: Client;
   onBack: () => void;
+  onClientUpdate?: (client: Client) => void;
 }
 
 const serviceTypeLabels: Record<ServiceType, string> = {
@@ -101,11 +107,17 @@ const statusLabels: Record<ServiceStatus, string> = {
   cancelled: "Cancellato",
 };
 
-export const ClientDetails = ({ client, onBack }: ClientDetailsProps) => {
+export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate }: ClientDetailsProps) => {
   const { toast } = useToast();
+  const [client, setClient] = useState(initialClient);
   const [services, setServices] = useState<ClientService[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddService, setShowAddService] = useState(false);
+  const [showEditClient, setShowEditClient] = useState(false);
+
+  useEffect(() => {
+    setClient(initialClient);
+  }, [initialClient]);
 
   useEffect(() => {
     fetchServices();
@@ -132,6 +144,52 @@ export const ClientDetails = ({ client, onBack }: ClientDetailsProps) => {
     setIsLoading(false);
   };
 
+  const toggleClientActive = async () => {
+    const newStatus = !client.is_active;
+    const { error } = await supabase
+      .from("clients")
+      .update({ is_active: newStatus })
+      .eq("id", client.id);
+
+    if (error) {
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare lo stato del cliente",
+        variant: "destructive",
+      });
+    } else {
+      const updatedClient = { ...client, is_active: newStatus };
+      setClient(updatedClient);
+      onClientUpdate?.(updatedClient);
+      toast({
+        title: newStatus ? "Cliente attivato" : "Cliente disattivato",
+        description: `${client.name} è stato ${newStatus ? "attivato" : "disattivato"}`,
+      });
+    }
+  };
+
+  const toggleServiceStatus = async (service: ClientService) => {
+    const newStatus: ServiceStatus = service.status === "active" ? "suspended" : "active";
+    const { error } = await supabase
+      .from("client_services")
+      .update({ status: newStatus })
+      .eq("id", service.id);
+
+    if (error) {
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare lo stato del servizio",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: newStatus === "active" ? "Servizio attivato" : "Servizio sospeso",
+        description: `${service.service_name} è stato ${newStatus === "active" ? "attivato" : "sospeso"}`,
+      });
+      fetchServices();
+    }
+  };
+
   const deleteService = async (serviceId: string) => {
     if (!confirm("Sei sicuro di voler eliminare questo servizio?")) return;
 
@@ -155,6 +213,11 @@ export const ClientDetails = ({ client, onBack }: ClientDetailsProps) => {
     }
   };
 
+  const handleClientUpdate = (updatedClient: Client) => {
+    setClient(updatedClient);
+    onClientUpdate?.(updatedClient);
+  };
+
   const fullAddress = [
     client.address,
     client.city,
@@ -168,20 +231,33 @@ export const ClientDetails = ({ client, onBack }: ClientDetailsProps) => {
   return (
     <div className="p-4 md:p-8 max-w-4xl w-full">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-4 md:mb-6">
+      <div className="flex items-center justify-between gap-4 mb-4 md:mb-6">
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ArrowLeft className="w-4 h-4" />
           Indietro
         </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowEditClient(true)}>
+            <Edit className="w-4 h-4" />
+            <span className="hidden sm:inline ml-1">Modifica</span>
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6 md:mb-8">
         <div className="flex items-center gap-3 md:gap-4">
-          <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 rounded-xl md:rounded-2xl flex items-center justify-center flex-shrink-0">
-            <Building2 className="w-6 h-6 md:w-8 md:h-8 text-primary" />
+          <div className={`w-12 h-12 md:w-16 md:h-16 rounded-xl md:rounded-2xl flex items-center justify-center flex-shrink-0 ${client.is_active !== false ? 'bg-primary/10' : 'bg-muted'}`}>
+            <Building2 className={`w-6 h-6 md:w-8 md:h-8 ${client.is_active !== false ? 'text-primary' : 'text-muted-foreground'}`} />
           </div>
           <div className="min-w-0">
-            <h2 className="font-display text-xl md:text-2xl font-bold truncate">{client.name}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-display text-xl md:text-2xl font-bold truncate">{client.name}</h2>
+              {client.is_active === false && (
+                <Badge variant="secondary" className="bg-muted text-muted-foreground text-xs">
+                  Disattivato
+                </Badge>
+              )}
+            </div>
             {client.ragione_sociale && (
               <p className="text-muted-foreground text-sm md:text-base truncate">{client.ragione_sociale}</p>
             )}
@@ -192,6 +268,16 @@ export const ClientDetails = ({ client, onBack }: ClientDetailsProps) => {
               })}
             </p>
           </div>
+        </div>
+        
+        {/* Toggle client active */}
+        <div className="flex items-center gap-3 bg-secondary/30 rounded-xl p-3">
+          <Power className={`w-4 h-4 ${client.is_active !== false ? 'text-green-500' : 'text-muted-foreground'}`} />
+          <span className="text-sm">{client.is_active !== false ? 'Attivo' : 'Disattivato'}</span>
+          <Switch
+            checked={client.is_active !== false}
+            onCheckedChange={toggleClientActive}
+          />
         </div>
       </div>
 
@@ -284,7 +370,7 @@ export const ClientDetails = ({ client, onBack }: ClientDetailsProps) => {
             {services.map((service) => (
               <div
                 key={service.id}
-                className="bg-secondary/30 rounded-xl p-3 md:p-4 flex items-start justify-between gap-2 md:gap-4"
+                className={`bg-secondary/30 rounded-xl p-3 md:p-4 flex items-start justify-between gap-2 md:gap-4 ${service.status === 'suspended' || service.status === 'cancelled' ? 'opacity-60' : ''}`}
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5 md:gap-3 mb-2">
@@ -334,14 +420,21 @@ export const ClientDetails = ({ client, onBack }: ClientDetailsProps) => {
                   )}
                 </div>
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive p-2 flex-shrink-0"
-                  onClick={() => deleteService(service.id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                  <Switch
+                    checked={service.status === "active"}
+                    onCheckedChange={() => toggleServiceStatus(service)}
+                    className="scale-90"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive p-2"
+                    onClick={() => deleteService(service.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -364,6 +457,13 @@ export const ClientDetails = ({ client, onBack }: ClientDetailsProps) => {
         clientId={client.id}
         clientName={client.name}
         onSuccess={fetchServices}
+      />
+
+      <EditClientModal
+        open={showEditClient}
+        onOpenChange={setShowEditClient}
+        client={client}
+        onSuccess={handleClientUpdate}
       />
     </div>
   );

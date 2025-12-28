@@ -82,6 +82,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          is_active: boolean
           name: string
           notes: string | null
           partita_iva: string | null
@@ -101,6 +102,7 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          is_active?: boolean
           name: string
           notes?: string | null
           partita_iva?: string | null
@@ -120,6 +122,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          is_active?: boolean
           name?: string
           notes?: string | null
           partita_iva?: string | null
