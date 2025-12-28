@@ -166,28 +166,28 @@ export const ClientDetails = ({ client, onBack }: ClientDetailsProps) => {
     .join(", ");
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-4 md:p-8 max-w-4xl w-full">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4 mb-4 md:mb-6">
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ArrowLeft className="w-4 h-4" />
           Indietro
         </Button>
       </div>
 
-      <div className="flex items-start justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
-            <Building2 className="w-8 h-8 text-primary" />
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6 md:mb-8">
+        <div className="flex items-center gap-3 md:gap-4">
+          <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 rounded-xl md:rounded-2xl flex items-center justify-center flex-shrink-0">
+            <Building2 className="w-6 h-6 md:w-8 md:h-8 text-primary" />
           </div>
-          <div>
-            <h2 className="font-display text-2xl font-bold">{client.name}</h2>
+          <div className="min-w-0">
+            <h2 className="font-display text-xl md:text-2xl font-bold truncate">{client.name}</h2>
             {client.ragione_sociale && (
-              <p className="text-muted-foreground">{client.ragione_sociale}</p>
+              <p className="text-muted-foreground text-sm md:text-base truncate">{client.ragione_sociale}</p>
             )}
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs md:text-sm text-muted-foreground">
               Cliente dal{" "}
-              {format(new Date(client.created_at), "dd MMMM yyyy", {
+              {format(new Date(client.created_at), "dd MMM yyyy", {
                 locale: it,
               })}
             </p>
@@ -196,29 +196,29 @@ export const ClientDetails = ({ client, onBack }: ClientDetailsProps) => {
       </div>
 
       {/* Client Info Cards */}
-      <div className="grid md:grid-cols-3 gap-4 mb-8">
-        <div className="bg-secondary/30 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-            <Mail className="w-4 h-4" />
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4 mb-6 md:mb-8">
+        <div className="bg-secondary/30 rounded-xl p-3 md:p-4 col-span-2 md:col-span-1">
+          <div className="flex items-center gap-1.5 md:gap-2 text-muted-foreground text-xs md:text-sm mb-1">
+            <Mail className="w-3.5 h-3.5 md:w-4 md:h-4" />
             Email
           </div>
-          <a href={`mailto:${client.email}`} className="text-primary hover:underline">
+          <a href={`mailto:${client.email}`} className="text-primary hover:underline text-sm md:text-base block truncate">
             {client.email}
           </a>
           {client.pec && (
-            <p className="text-sm text-muted-foreground mt-1">PEC: {client.pec}</p>
+            <p className="text-xs md:text-sm text-muted-foreground mt-1 truncate">PEC: {client.pec}</p>
           )}
         </div>
 
         {client.phone && (
-          <div className="bg-secondary/30 rounded-xl p-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-              <Phone className="w-4 h-4" />
+          <div className="bg-secondary/30 rounded-xl p-3 md:p-4">
+            <div className="flex items-center gap-1.5 md:gap-2 text-muted-foreground text-xs md:text-sm mb-1">
+              <Phone className="w-3.5 h-3.5 md:w-4 md:h-4" />
               Telefono
             </div>
             <a
               href={`tel:${client.phone}`}
-              className="font-medium hover:text-primary"
+              className="font-medium hover:text-primary text-sm md:text-base"
             >
               {client.phone}
             </a>
@@ -226,14 +226,14 @@ export const ClientDetails = ({ client, onBack }: ClientDetailsProps) => {
         )}
 
         {client.partita_iva && (
-          <div className="bg-secondary/30 rounded-xl p-4">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-              <FileText className="w-4 h-4" />
+          <div className="bg-secondary/30 rounded-xl p-3 md:p-4">
+            <div className="flex items-center gap-1.5 md:gap-2 text-muted-foreground text-xs md:text-sm mb-1">
+              <FileText className="w-3.5 h-3.5 md:w-4 md:h-4" />
               P.IVA / SDI
             </div>
-            <p className="font-medium">{client.partita_iva}</p>
+            <p className="font-medium text-sm md:text-base truncate">{client.partita_iva}</p>
             {client.codice_sdi && (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs md:text-sm text-muted-foreground truncate">
                 SDI: {client.codice_sdi}
               </p>
             )}
@@ -241,80 +241,79 @@ export const ClientDetails = ({ client, onBack }: ClientDetailsProps) => {
         )}
 
         {fullAddress && (
-          <div className="bg-secondary/30 rounded-xl p-4 md:col-span-2">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-              <MapPin className="w-4 h-4" />
+          <div className="bg-secondary/30 rounded-xl p-3 md:p-4 col-span-2">
+            <div className="flex items-center gap-1.5 md:gap-2 text-muted-foreground text-xs md:text-sm mb-1">
+              <MapPin className="w-3.5 h-3.5 md:w-4 md:h-4" />
               Indirizzo
             </div>
-            <p className="font-medium">{fullAddress}</p>
+            <p className="font-medium text-sm md:text-base">{fullAddress}</p>
           </div>
         )}
       </div>
 
       {/* Services Section */}
-      <div className="bg-card border border-border rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="font-display font-bold text-lg">Servizi Attivi</h3>
-          <Button size="sm" onClick={() => setShowAddService(true)}>
-            <Plus className="w-4 h-4" />
-            Aggiungi Servizio
+      <div className="bg-card border border-border rounded-xl md:rounded-2xl p-4 md:p-6">
+        <div className="flex items-center justify-between gap-2 mb-4 md:mb-6">
+          <h3 className="font-display font-bold text-base md:text-lg">Servizi Attivi</h3>
+          <Button size="sm" onClick={() => setShowAddService(true)} className="text-xs md:text-sm">
+            <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
+            <span className="hidden sm:inline">Aggiungi</span> Servizio
           </Button>
         </div>
 
         {isLoading ? (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-6 md:py-8 text-muted-foreground text-sm md:text-base">
             Caricamento servizi...
           </div>
         ) : services.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Server className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p>Nessun servizio registrato</p>
+          <div className="text-center py-6 md:py-8 text-muted-foreground">
+            <Server className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-3 opacity-30" />
+            <p className="text-sm md:text-base">Nessun servizio registrato</p>
             <Button
               variant="outline"
               size="sm"
-              className="mt-4"
+              className="mt-4 text-xs md:text-sm"
               onClick={() => setShowAddService(true)}
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
               Aggiungi il primo servizio
             </Button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             {services.map((service) => (
               <div
                 key={service.id}
-                className="bg-secondary/30 rounded-xl p-4 flex items-start justify-between gap-4"
+                className="bg-secondary/30 rounded-xl p-3 md:p-4 flex items-start justify-between gap-2 md:gap-4"
               >
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="font-medium">{service.service_name}</span>
-                    <Badge variant="outline" className="text-xs">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5 md:gap-3 mb-2">
+                    <span className="font-medium text-sm md:text-base truncate">{service.service_name}</span>
+                    <Badge variant="outline" className="text-[10px] md:text-xs">
                       {serviceTypeLabels[service.service_type]}
                     </Badge>
-                    <Badge className={`text-xs ${statusColors[service.status]}`}>
+                    <Badge className={`text-[10px] md:text-xs ${statusColors[service.status]}`}>
                       {statusLabels[service.status]}
                     </Badge>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-muted-foreground">
+                  <div className="grid grid-cols-2 gap-1 md:gap-2 text-xs md:text-sm text-muted-foreground">
                     {service.domain_name && (
-                      <div className="flex items-center gap-1">
-                        <Globe className="w-3 h-3" />
-                        {service.domain_name}
+                      <div className="flex items-center gap-1 truncate">
+                        <Globe className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{service.domain_name}</span>
                       </div>
                     )}
                     {service.server_name && (
-                      <div className="flex items-center gap-1">
-                        <Server className="w-3 h-3" />
-                        {service.server_name}
+                      <div className="flex items-center gap-1 truncate">
+                        <Server className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate">{service.server_name}</span>
                       </div>
                     )}
                     {service.expiration_date && (
                       <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        Scade:{" "}
-                        {format(new Date(service.expiration_date), "dd/MM/yyyy")}
+                        <Calendar className="w-3 h-3 flex-shrink-0" />
+                        {format(new Date(service.expiration_date), "dd/MM/yy")}
                       </div>
                     )}
                     <div className="flex items-center gap-1">
@@ -322,14 +321,14 @@ export const ClientDetails = ({ client, onBack }: ClientDetailsProps) => {
                     </div>
                     {service.price && (
                       <div className="flex items-center gap-1">
-                        <Euro className="w-3 h-3" />
+                        <Euro className="w-3 h-3 flex-shrink-0" />
                         {service.price.toFixed(2)}
                       </div>
                     )}
                   </div>
 
                   {service.description && (
-                    <p className="text-sm text-muted-foreground mt-2">
+                    <p className="text-xs md:text-sm text-muted-foreground mt-2 line-clamp-2">
                       {service.description}
                     </p>
                   )}
@@ -338,7 +337,7 @@ export const ClientDetails = ({ client, onBack }: ClientDetailsProps) => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-destructive hover:text-destructive"
+                  className="text-destructive hover:text-destructive p-2 flex-shrink-0"
                   onClick={() => deleteService(service.id)}
                 >
                   <Trash2 className="w-4 h-4" />
@@ -351,9 +350,9 @@ export const ClientDetails = ({ client, onBack }: ClientDetailsProps) => {
 
       {/* Notes */}
       {client.notes && (
-        <div className="mt-6 bg-secondary/30 rounded-xl p-4">
-          <h4 className="font-medium mb-2">Note</h4>
-          <p className="text-muted-foreground whitespace-pre-wrap">
+        <div className="mt-4 md:mt-6 bg-secondary/30 rounded-xl p-3 md:p-4">
+          <h4 className="font-medium mb-2 text-sm md:text-base">Note</h4>
+          <p className="text-muted-foreground whitespace-pre-wrap text-sm md:text-base">
             {client.notes}
           </p>
         </div>
