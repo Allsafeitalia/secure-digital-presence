@@ -1,1 +1,7 @@
 project_id = "kthxektvgaidqjetjsur"
+
+[functions.create-client-account]
+verify_jwt = true
+
+[functions.monitor-services]
+verify_jwt = false

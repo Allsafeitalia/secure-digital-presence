@@ -58,7 +58,8 @@ export const CreateClientModal = ({
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.from("clients").insert({
+      // First create the client record
+      const { data: clientData, error } = await supabase.from("clients").insert({
         ticket_id: ticketData?.id,
         name: formData.name,
         email: formData.email,
@@ -73,14 +74,35 @@ export const CreateClientModal = ({
         postal_code: formData.postal_code || null,
         country: formData.country,
         notes: formData.notes || null,
-      });
+      }).select().single();
 
       if (error) throw error;
 
-      toast({
-        title: "Cliente creato",
-        description: "Il cliente è stato registrato con successo",
-      });
+      // Now create the auth account and send email
+      const { data: accountData, error: accountError } = await supabase.functions.invoke(
+        "create-client-account",
+        {
+          body: {
+            clientId: clientData.id,
+            email: formData.email,
+            name: formData.name,
+          },
+        }
+      );
+
+      if (accountError) {
+        console.error("Error creating account:", accountError);
+        toast({
+          title: "Cliente creato",
+          description: "Il cliente è stato registrato, ma non è stato possibile creare l'account di accesso. Prova a ricreare l'account manualmente.",
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Cliente creato",
+          description: "Il cliente è stato registrato e ha ricevuto le credenziali via email",
+        });
+      }
 
       onSuccess();
       onOpenChange(false);

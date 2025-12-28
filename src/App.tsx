@@ -7,6 +7,8 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
+import ClientPortal from "./pages/ClientPortal";
+import ClientLogin from "./pages/ClientLogin";
 import { useChristmasTheme } from "./hooks/useChristmasTheme";
 import { ChristmasEffects } from "./components/ChristmasEffects";
 
@@ -25,6 +27,8 @@ const AppContent = () => {
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/client-portal" element={<ClientPortal />} />
+          <Route path="/client-login" element={<ClientLogin />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

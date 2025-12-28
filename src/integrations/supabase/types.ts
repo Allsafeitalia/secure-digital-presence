@@ -23,6 +23,10 @@ export type Database = {
           domain_name: string | null
           expiration_date: string | null
           id: string
+          is_online: boolean | null
+          last_check_at: string | null
+          last_error: string | null
+          last_response_time_ms: number | null
           notes: string | null
           price: number | null
           server_name: string | null
@@ -30,6 +34,7 @@ export type Database = {
           service_type: Database["public"]["Enums"]["service_type"]
           status: Database["public"]["Enums"]["service_status"]
           updated_at: string
+          url_to_monitor: string | null
         }
         Insert: {
           billing_cycle?: Database["public"]["Enums"]["billing_cycle"]
@@ -39,6 +44,10 @@ export type Database = {
           domain_name?: string | null
           expiration_date?: string | null
           id?: string
+          is_online?: boolean | null
+          last_check_at?: string | null
+          last_error?: string | null
+          last_response_time_ms?: number | null
           notes?: string | null
           price?: number | null
           server_name?: string | null
@@ -46,6 +55,7 @@ export type Database = {
           service_type: Database["public"]["Enums"]["service_type"]
           status?: Database["public"]["Enums"]["service_status"]
           updated_at?: string
+          url_to_monitor?: string | null
         }
         Update: {
           billing_cycle?: Database["public"]["Enums"]["billing_cycle"]
@@ -55,6 +65,10 @@ export type Database = {
           domain_name?: string | null
           expiration_date?: string | null
           id?: string
+          is_online?: boolean | null
+          last_check_at?: string | null
+          last_error?: string | null
+          last_response_time_ms?: number | null
           notes?: string | null
           price?: number | null
           server_name?: string | null
@@ -62,6 +76,7 @@ export type Database = {
           service_type?: Database["public"]["Enums"]["service_type"]
           status?: Database["public"]["Enums"]["service_status"]
           updated_at?: string
+          url_to_monitor?: string | null
         }
         Relationships: [
           {
@@ -77,6 +92,7 @@ export type Database = {
         Row: {
           address: string | null
           city: string | null
+          client_user_id: string | null
           codice_sdi: string | null
           country: string | null
           created_at: string
@@ -97,6 +113,7 @@ export type Database = {
         Insert: {
           address?: string | null
           city?: string | null
+          client_user_id?: string | null
           codice_sdi?: string | null
           country?: string | null
           created_at?: string
@@ -117,6 +134,7 @@ export type Database = {
         Update: {
           address?: string | null
           city?: string | null
+          client_user_id?: string | null
           codice_sdi?: string | null
           country?: string | null
           created_at?: string
@@ -179,6 +197,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      service_monitoring_logs: {
+        Row: {
+          checked_at: string
+          error_message: string | null
+          id: string
+          is_online: boolean
+          response_time_ms: number | null
+          service_id: string
+          status_code: number | null
+        }
+        Insert: {
+          checked_at?: string
+          error_message?: string | null
+          id?: string
+          is_online: boolean
+          response_time_ms?: number | null
+          service_id: string
+          status_code?: number | null
+        }
+        Update: {
+          checked_at?: string
+          error_message?: string | null
+          id?: string
+          is_online?: boolean
+          response_time_ms?: number | null
+          service_id?: string
+          status_code?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_monitoring_logs_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "client_services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
