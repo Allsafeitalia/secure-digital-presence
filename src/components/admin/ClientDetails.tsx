@@ -30,6 +30,8 @@ import {
   ArrowLeft,
   Edit,
   Power,
+  KeyRound,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -127,6 +129,7 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
   const [showAddService, setShowAddService] = useState(false);
   const [showEditClient, setShowEditClient] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isResendingCredentials, setIsResendingCredentials] = useState(false);
 
   useEffect(() => {
     setClient(initialClient);
@@ -273,6 +276,36 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
     setIsDeleting(false);
   };
 
+  const resendCredentials = async () => {
+    setIsResendingCredentials(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('resend-credentials', {
+        body: {
+          clientId: client.id,
+          email: client.email,
+          name: client.name,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Credenziali inviate",
+        description: `Nuove credenziali inviate a ${client.email}`,
+      });
+    } catch (error: any) {
+      console.error("Error resending credentials:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile inviare le credenziali",
+        variant: "destructive",
+      });
+    }
+    
+    setIsResendingCredentials(false);
+  };
+
   const fullAddress = [
     client.address,
     client.city,
@@ -292,6 +325,39 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
           Indietro
         </Button>
         <div className="flex items-center gap-2">
+          {/* Resend Credentials Button */}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm"
+                disabled={isResendingCredentials}
+              >
+                {isResendingCredentials ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <KeyRound className="w-4 h-4" />
+                )}
+                <span className="hidden sm:inline ml-1">Reinvia Credenziali</span>
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Reinviare le credenziali?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Verrà generata una nuova password temporanea e inviata a <strong>{client.email}</strong>. 
+                  La vecchia password non sarà più valida.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annulla</AlertDialogCancel>
+                <AlertDialogAction onClick={resendCredentials}>
+                  Invia Nuove Credenziali
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           <Button variant="outline" size="sm" onClick={() => setShowEditClient(true)}>
             <Edit className="w-4 h-4" />
             <span className="hidden sm:inline ml-1">Modifica</span>
