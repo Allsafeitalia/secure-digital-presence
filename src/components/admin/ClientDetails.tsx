@@ -300,15 +300,28 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
       let description = "Impossibile inviare le credenziali";
 
       try {
-        const resp = error?.context?.response;
+        const ctx: any = error?.context;
+        const resp: Response | undefined =
+          typeof Response !== "undefined" && ctx instanceof Response
+            ? ctx
+            : typeof Response !== "undefined" && ctx?.response instanceof Response
+              ? ctx.response
+              : undefined;
+
         if (resp) {
           const status = resp.status;
-          const text = await resp.text();
-          try {
-            const json = JSON.parse(text);
-            description = json?.error ? `${json.error} (HTTP ${status})` : `${text} (HTTP ${status})`;
-          } catch {
-            description = `${text || description} (HTTP ${status})`;
+          const text = await resp.clone().text();
+
+          if (text) {
+            try {
+              const json = JSON.parse(text);
+              const msg = json?.error || json?.message || text;
+              description = `${msg} (HTTP ${status})`;
+            } catch {
+              description = `${text} (HTTP ${status})`;
+            }
+          } else {
+            description = `${description} (HTTP ${status})`;
           }
         } else if (error?.message) {
           description = error.message;

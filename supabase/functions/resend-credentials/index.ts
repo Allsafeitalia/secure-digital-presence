@@ -173,7 +173,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (emailError) {
       console.error("Error sending email:", emailError);
-      throw new Error("Password reset but failed to send email");
+      const details =
+        (emailError as any)?.message ??
+        (typeof emailError === "string" ? emailError : undefined) ??
+        JSON.stringify(emailError);
+      throw new Error(`Invio email fallito: ${details}`);
     }
     
     console.log("Email sent successfully to:", email);
