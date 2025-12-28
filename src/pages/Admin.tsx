@@ -15,9 +15,14 @@ import {
   RefreshCw,
   Phone,
   MessageCircle,
+  Building2,
+  Users,
+  UserPlus,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { CreateClientModal } from "@/components/admin/CreateClientModal";
+import { ClientDetails } from "@/components/admin/ClientDetails";
 
 interface ContactTicket {
   id: string;
@@ -31,11 +36,36 @@ interface ContactTicket {
   updated_at: string;
 }
 
+interface Client {
+  id: string;
+  ticket_id: string | null;
+  name: string;
+  email: string;
+  phone: string | null;
+  ragione_sociale: string | null;
+  partita_iva: string | null;
+  codice_sdi: string | null;
+  pec: string | null;
+  address: string | null;
+  city: string | null;
+  province: string | null;
+  postal_code: string | null;
+  country: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+type ViewMode = "tickets" | "clients";
+
 const Admin = () => {
   const [tickets, setTickets] = useState<ContactTicket[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<ContactTicket | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "open" | "closed">("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("tickets");
+  const [showCreateClient, setShowCreateClient] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -91,8 +121,9 @@ const Admin = () => {
 
   useEffect(() => {
     fetchTickets();
+    fetchClients();
 
-    const channel = supabase
+    const ticketChannel = supabase
       .channel("tickets-changes")
       .on(
         "postgres_changes",
@@ -107,8 +138,24 @@ const Admin = () => {
       )
       .subscribe();
 
+    const clientChannel = supabase
+      .channel("clients-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "clients",
+        },
+        () => {
+          fetchClients();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(ticketChannel);
+      supabase.removeChannel(clientChannel);
     };
   }, []);
 
@@ -130,6 +177,19 @@ const Admin = () => {
       setTickets((data as ContactTicket[]) || []);
     }
     setIsLoading(false);
+  };
+
+  const fetchClients = async () => {
+    const { data, error } = await supabase
+      .from("clients")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching clients:", error);
+    } else {
+      setClients((data as Client[]) || []);
+    }
   };
 
   const toggleTicketStatus = async (ticket: ContactTicket) => {
@@ -177,9 +237,36 @@ const Admin = () => {
     }
   };
 
+  const deleteClient = async (clientId: string) => {
+    if (!confirm("Sei sicuro di voler eliminare questo cliente e tutti i suoi servizi?")) return;
+    
+    const { error } = await supabase
+      .from("clients")
+      .delete()
+      .eq("id", clientId);
+
+    if (error) {
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare il cliente",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Cliente eliminato",
+        description: "Il cliente è stato rimosso",
+      });
+      setSelectedClient(null);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/");
+  };
+
+  const isAlreadyClient = (ticketId: string) => {
+    return clients.some((c) => c.ticket_id === ticketId);
   };
 
   const filteredTickets = tickets.filter((ticket) => {
@@ -197,16 +284,54 @@ const Admin = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-              <Ticket className="w-5 h-5 text-primary" />
+              {viewMode === "tickets" ? (
+                <Ticket className="w-5 h-5 text-primary" />
+              ) : (
+                <Users className="w-5 h-5 text-primary" />
+              )}
             </div>
             <div>
-              <h1 className="font-display font-bold text-lg">Pannello Ticket</h1>
+              <h1 className="font-display font-bold text-lg">
+                {viewMode === "tickets" ? "Pannello Ticket" : "Gestione Clienti"}
+              </h1>
               <p className="text-muted-foreground text-sm">
-                Gestisci le richieste di contatto
+                {viewMode === "tickets"
+                  ? "Gestisci le richieste di contatto"
+                  : `${clients.length} clienti registrati`}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <div className="flex bg-secondary/50 rounded-lg p-1">
+              <button
+                onClick={() => {
+                  setViewMode("tickets");
+                  setSelectedClient(null);
+                }}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === "tickets"
+                    ? "bg-background shadow-sm"
+                    : "hover:bg-background/50"
+                }`}
+              >
+                <Ticket className="w-4 h-4 inline-block mr-2" />
+                Ticket
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode("clients");
+                  setSelectedTicket(null);
+                }}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  viewMode === "clients"
+                    ? "bg-background shadow-sm"
+                    : "hover:bg-background/50"
+                }`}
+              >
+                <Users className="w-4 h-4 inline-block mr-2" />
+                Clienti
+              </button>
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -229,106 +354,178 @@ const Admin = () => {
       <div className="flex h-[calc(100vh-73px)]">
         {/* Sidebar */}
         <aside className="w-80 bg-card border-r border-border flex flex-col">
-          {/* Stats */}
-          <div className="p-4 border-b border-border">
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => setFilter("all")}
-                className={`p-3 rounded-xl text-center transition-colors ${
-                  filter === "all"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary/50 hover:bg-secondary"
-                }`}
-              >
-                <div className="text-xl font-bold">{tickets.length}</div>
-                <div className="text-xs opacity-80">Tutti</div>
-              </button>
-              <button
-                onClick={() => setFilter("open")}
-                className={`p-3 rounded-xl text-center transition-colors ${
-                  filter === "open"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary/50 hover:bg-secondary"
-                }`}
-              >
-                <div className="text-xl font-bold">{openCount}</div>
-                <div className="text-xs opacity-80">Aperti</div>
-              </button>
-              <button
-                onClick={() => setFilter("closed")}
-                className={`p-3 rounded-xl text-center transition-colors ${
-                  filter === "closed"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary/50 hover:bg-secondary"
-                }`}
-              >
-                <div className="text-xl font-bold">{closedCount}</div>
-                <div className="text-xs opacity-80">Chiusi</div>
-              </button>
-            </div>
-          </div>
-
-          {/* Refresh */}
-          <div className="p-4 border-b border-border">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={fetchTickets}
-              disabled={isLoading}
-            >
-              <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
-              Aggiorna
-            </Button>
-          </div>
-
-          {/* Ticket List */}
-          <div className="flex-1 overflow-y-auto">
-            {filteredTickets.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">
-                <Ticket className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>Nessun ticket trovato</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {filteredTickets.map((ticket) => (
+          {viewMode === "tickets" ? (
+            <>
+              {/* Stats */}
+              <div className="p-4 border-b border-border">
+                <div className="grid grid-cols-3 gap-2">
                   <button
-                    key={ticket.id}
-                    onClick={() => setSelectedTicket(ticket)}
-                    className={`w-full p-4 text-left hover:bg-secondary/50 transition-colors ${
-                      selectedTicket?.id === ticket.id ? "bg-secondary" : ""
+                    onClick={() => setFilter("all")}
+                    className={`p-3 rounded-xl text-center transition-colors ${
+                      filter === "all"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary/50 hover:bg-secondary"
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <span className="font-medium truncate">{ticket.name}</span>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          ticket.status === "open"
-                            ? "bg-green-500/10 text-green-500"
-                            : "bg-muted text-muted-foreground"
+                    <div className="text-xl font-bold">{tickets.length}</div>
+                    <div className="text-xs opacity-80">Tutti</div>
+                  </button>
+                  <button
+                    onClick={() => setFilter("open")}
+                    className={`p-3 rounded-xl text-center transition-colors ${
+                      filter === "open"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary/50 hover:bg-secondary"
+                    }`}
+                  >
+                    <div className="text-xl font-bold">{openCount}</div>
+                    <div className="text-xs opacity-80">Aperti</div>
+                  </button>
+                  <button
+                    onClick={() => setFilter("closed")}
+                    className={`p-3 rounded-xl text-center transition-colors ${
+                      filter === "closed"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary/50 hover:bg-secondary"
+                    }`}
+                  >
+                    <div className="text-xl font-bold">{closedCount}</div>
+                    <div className="text-xs opacity-80">Chiusi</div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Refresh */}
+              <div className="p-4 border-b border-border">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={fetchTickets}
+                  disabled={isLoading}
+                >
+                  <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+                  Aggiorna
+                </Button>
+              </div>
+
+              {/* Ticket List */}
+              <div className="flex-1 overflow-y-auto">
+                {filteredTickets.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Ticket className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p>Nessun ticket trovato</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {filteredTickets.map((ticket) => (
+                      <button
+                        key={ticket.id}
+                        onClick={() => setSelectedTicket(ticket)}
+                        className={`w-full p-4 text-left hover:bg-secondary/50 transition-colors ${
+                          selectedTicket?.id === ticket.id ? "bg-secondary" : ""
                         }`}
                       >
-                        {ticket.status === "open" ? "Aperto" : "Chiuso"}
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground truncate mb-1">
-                      {ticket.subject}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(ticket.created_at), "dd MMM yyyy, HH:mm", {
-                        locale: it,
-                      })}
-                    </p>
-                  </button>
-                ))}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <span className="font-medium truncate">{ticket.name}</span>
+                          <div className="flex gap-1">
+                            {isAlreadyClient(ticket.id) && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-500">
+                                Cliente
+                              </span>
+                            )}
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                ticket.status === "open"
+                                  ? "bg-green-500/10 text-green-500"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {ticket.status === "open" ? "Aperto" : "Chiuso"}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate mb-1">
+                          {ticket.subject}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(ticket.created_at), "dd MMM yyyy, HH:mm", {
+                            locale: it,
+                          })}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <>
+              {/* Clients Stats */}
+              <div className="p-4 border-b border-border">
+                <div className="bg-primary/10 p-4 rounded-xl text-center">
+                  <div className="text-3xl font-bold text-primary">{clients.length}</div>
+                  <div className="text-sm text-muted-foreground">Clienti Totali</div>
+                </div>
+              </div>
+
+              {/* Refresh */}
+              <div className="p-4 border-b border-border">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={fetchClients}
+                >
+                  <RefreshCw size={16} />
+                  Aggiorna
+                </Button>
+              </div>
+
+              {/* Client List */}
+              <div className="flex-1 overflow-y-auto">
+                {clients.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p>Nessun cliente registrato</p>
+                    <p className="text-sm mt-2">
+                      Usa "Diventa Cliente" su un ticket per aggiungere clienti
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {clients.map((client) => (
+                      <button
+                        key={client.id}
+                        onClick={() => setSelectedClient(client)}
+                        className={`w-full p-4 text-left hover:bg-secondary/50 transition-colors ${
+                          selectedClient?.id === client.id ? "bg-secondary" : ""
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 mb-1">
+                          <Building2 className="w-4 h-4 text-primary" />
+                          <span className="font-medium truncate">{client.name}</span>
+                        </div>
+                        {client.ragione_sociale && (
+                          <p className="text-sm text-muted-foreground truncate mb-1 ml-7">
+                            {client.ragione_sociale}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground ml-7">
+                          {client.email}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </aside>
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
-          {selectedTicket ? (
+          {viewMode === "tickets" && selectedTicket ? (
             <div className="p-8 max-w-3xl">
               {/* Ticket Header */}
               <div className="flex items-start justify-between mb-6">
@@ -346,12 +543,28 @@ const Admin = () => {
                     >
                       {selectedTicket.status === "open" ? "Aperto" : "Chiuso"}
                     </span>
+                    {isAlreadyClient(selectedTicket.id) && (
+                      <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-500/10 text-blue-500">
+                        Già Cliente
+                      </span>
+                    )}
                   </div>
                   <p className="text-muted-foreground text-sm">
                     ID: {selectedTicket.id.slice(0, 8)}...
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  {!isAlreadyClient(selectedTicket.id) && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setShowCreateClient(true)}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <UserPlus size={16} />
+                      Diventa Cliente
+                    </Button>
+                  )}
                   <Button
                     variant={selectedTicket.status === "open" ? "default" : "outline"}
                     size="sm"
@@ -465,16 +678,48 @@ const Admin = () => {
                 )}
               </div>
             </div>
+          ) : viewMode === "clients" && selectedClient ? (
+            <ClientDetails
+              client={selectedClient}
+              onBack={() => setSelectedClient(null)}
+            />
           ) : (
             <div className="h-full flex items-center justify-center text-muted-foreground">
               <div className="text-center">
-                <Ticket className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                <p className="text-lg">Seleziona un ticket per visualizzarlo</p>
+                {viewMode === "tickets" ? (
+                  <>
+                    <Ticket className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                    <p className="text-lg">Seleziona un ticket per visualizzarlo</p>
+                  </>
+                ) : (
+                  <>
+                    <Users className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                    <p className="text-lg">Seleziona un cliente per visualizzarlo</p>
+                  </>
+                )}
               </div>
             </div>
           )}
         </main>
       </div>
+
+      {/* Create Client Modal */}
+      {selectedTicket && (
+        <CreateClientModal
+          open={showCreateClient}
+          onOpenChange={setShowCreateClient}
+          ticketData={{
+            id: selectedTicket.id,
+            name: selectedTicket.name,
+            email: selectedTicket.email,
+            phone: selectedTicket.phone,
+          }}
+          onSuccess={() => {
+            fetchClients();
+            setShowCreateClient(false);
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -14,6 +14,133 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_services: {
+        Row: {
+          billing_cycle: Database["public"]["Enums"]["billing_cycle"]
+          client_id: string
+          created_at: string
+          description: string | null
+          domain_name: string | null
+          expiration_date: string | null
+          id: string
+          notes: string | null
+          price: number | null
+          server_name: string | null
+          service_name: string
+          service_type: Database["public"]["Enums"]["service_type"]
+          status: Database["public"]["Enums"]["service_status"]
+          updated_at: string
+        }
+        Insert: {
+          billing_cycle?: Database["public"]["Enums"]["billing_cycle"]
+          client_id: string
+          created_at?: string
+          description?: string | null
+          domain_name?: string | null
+          expiration_date?: string | null
+          id?: string
+          notes?: string | null
+          price?: number | null
+          server_name?: string | null
+          service_name: string
+          service_type: Database["public"]["Enums"]["service_type"]
+          status?: Database["public"]["Enums"]["service_status"]
+          updated_at?: string
+        }
+        Update: {
+          billing_cycle?: Database["public"]["Enums"]["billing_cycle"]
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          domain_name?: string | null
+          expiration_date?: string | null
+          id?: string
+          notes?: string | null
+          price?: number | null
+          server_name?: string | null
+          service_name?: string
+          service_type?: Database["public"]["Enums"]["service_type"]
+          status?: Database["public"]["Enums"]["service_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_services_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          address: string | null
+          city: string | null
+          codice_sdi: string | null
+          country: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          notes: string | null
+          partita_iva: string | null
+          pec: string | null
+          phone: string | null
+          postal_code: string | null
+          province: string | null
+          ragione_sociale: string | null
+          ticket_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          codice_sdi?: string | null
+          country?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          notes?: string | null
+          partita_iva?: string | null
+          pec?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          province?: string | null
+          ragione_sociale?: string | null
+          ticket_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          codice_sdi?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          partita_iva?: string | null
+          pec?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          province?: string | null
+          ragione_sociale?: string | null
+          ticket_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "contact_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_tickets: {
         Row: {
           created_at: string
@@ -86,6 +213,27 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      billing_cycle:
+        | "monthly"
+        | "quarterly"
+        | "biannual"
+        | "yearly"
+        | "one_time"
+      service_status:
+        | "active"
+        | "expiring_soon"
+        | "expired"
+        | "suspended"
+        | "cancelled"
+      service_type:
+        | "website"
+        | "domain"
+        | "hosting"
+        | "backup"
+        | "email"
+        | "ssl"
+        | "maintenance"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -214,6 +362,24 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      billing_cycle: ["monthly", "quarterly", "biannual", "yearly", "one_time"],
+      service_status: [
+        "active",
+        "expiring_soon",
+        "expired",
+        "suspended",
+        "cancelled",
+      ],
+      service_type: [
+        "website",
+        "domain",
+        "hosting",
+        "backup",
+        "email",
+        "ssl",
+        "maintenance",
+        "other",
+      ],
     },
   },
 } as const
