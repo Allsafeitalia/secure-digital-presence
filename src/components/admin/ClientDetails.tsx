@@ -296,9 +296,30 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
       });
     } catch (error: any) {
       console.error("Error resending credentials:", error);
+
+      let description = "Impossibile inviare le credenziali";
+
+      try {
+        const resp = error?.context?.response;
+        if (resp) {
+          const status = resp.status;
+          const text = await resp.text();
+          try {
+            const json = JSON.parse(text);
+            description = json?.error ? `${json.error} (HTTP ${status})` : `${text} (HTTP ${status})`;
+          } catch {
+            description = `${text || description} (HTTP ${status})`;
+          }
+        } else if (error?.message) {
+          description = error.message;
+        }
+      } catch {
+        // ignore parsing errors
+      }
+
       toast({
         title: "Errore",
-        description: error.message || "Impossibile inviare le credenziali",
+        description,
         variant: "destructive",
       });
     }

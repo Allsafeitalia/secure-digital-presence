@@ -5,6 +5,7 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 interface ResendCredentialsRequest {
@@ -23,11 +24,11 @@ const generateTemporaryPassword = (): string => {
 };
 
 const handler = async (req: Request): Promise<Response> => {
-  console.log("resend-credentials function called");
-  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  console.log("resend-credentials function called", { method: req.method });
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
