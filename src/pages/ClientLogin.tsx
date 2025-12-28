@@ -1,30 +1,52 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Lock, LogIn, ArrowLeft } from "lucide-react";
+import { Mail, Lock, LogIn, ArrowLeft, KeyRound, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { User, Session } from "@supabase/supabase-js";
 
+type ViewMode = "login" | "forgot-password" | "reset-password";
+
 export default function ClientLogin() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("login");
+
+  useEffect(() => {
+    // Check if this is a password recovery or invite flow
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const type = hashParams.get("type");
+    const accessToken = hashParams.get("access_token");
+    
+    if ((type === "recovery" || type === "invite") && accessToken) {
+      setViewMode("reset-password");
+    }
+  }, []);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       
-      if (session?.user) {
+      if (event === "PASSWORD_RECOVERY") {
+        setViewMode("reset-password");
+        return;
+      }
+      
+      if (session?.user && viewMode !== "reset-password") {
         // Check if this is a client user
         const isClient = session.user.user_metadata?.is_client;
         if (isClient) {
@@ -37,7 +59,7 @@ export default function ClientLogin() {
       setSession(session);
       setUser(session?.user ?? null);
       
-      if (session?.user) {
+      if (session?.user && viewMode !== "reset-password") {
         const isClient = session.user.user_metadata?.is_client;
         if (isClient) {
           navigate("/client-portal");
@@ -46,7 +68,7 @@ export default function ClientLogin() {
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, viewMode]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,6 +127,302 @@ export default function ClientLogin() {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email) {
+      toast({
+        title: "Errore",
+        description: "Inserisci la tua email",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const redirectUrl = `${window.location.origin}/client-login`;
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Email inviata",
+        description: "Controlla la tua casella email per il link di recupero password",
+      });
+      
+      setViewMode("login");
+    } catch (error: any) {
+      console.error("Password reset error:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile inviare l'email di recupero",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!password || !confirmPassword) {
+      toast({
+        title: "Errore",
+        description: "Compila entrambi i campi password",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast({
+        title: "Errore",
+        description: "Le password non coincidono",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({
+        title: "Errore",
+        description: "La password deve essere di almeno 6 caratteri",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password impostata",
+        description: "La tua password è stata impostata con successo. Ora puoi accedere.",
+      });
+      
+      // Clear the hash from URL
+      window.history.replaceState(null, "", window.location.pathname);
+      
+      setViewMode("login");
+      setPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      console.error("Password update error:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile impostare la password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const renderLoginForm = () => (
+    <>
+      <CardHeader className="text-center">
+        <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+          <LogIn className="w-8 h-8 text-primary" />
+        </div>
+        <CardTitle className="text-2xl">Portale Clienti</CardTitle>
+        <CardDescription>
+          Accedi per monitorare i tuoi servizi
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent>
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="la-tua@email.com"
+                className="pl-10"
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="pl-10"
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Accesso in corso...
+              </>
+            ) : (
+              "Accedi"
+            )}
+          </Button>
+        </form>
+
+        <button
+          type="button"
+          onClick={() => setViewMode("forgot-password")}
+          className="w-full text-sm text-primary hover:underline mt-4 text-center"
+        >
+          Password dimenticata?
+        </button>
+
+        <p className="text-xs text-center text-muted-foreground mt-6">
+          Se sei un nuovo cliente, riceverai un'email con un link per impostare la tua password.
+        </p>
+      </CardContent>
+    </>
+  );
+
+  const renderForgotPasswordForm = () => (
+    <>
+      <CardHeader className="text-center">
+        <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+          <KeyRound className="w-8 h-8 text-primary" />
+        </div>
+        <CardTitle className="text-2xl">Recupera Password</CardTitle>
+        <CardDescription>
+          Inserisci la tua email per ricevere il link di recupero
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent>
+        <form onSubmit={handleForgotPassword} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="la-tua@email.com"
+                className="pl-10"
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Invio in corso...
+              </>
+            ) : (
+              "Invia link di recupero"
+            )}
+          </Button>
+        </form>
+
+        <button
+          type="button"
+          onClick={() => setViewMode("login")}
+          className="w-full text-sm text-muted-foreground hover:text-foreground mt-4 text-center"
+        >
+          ← Torna al login
+        </button>
+      </CardContent>
+    </>
+  );
+
+  const renderResetPasswordForm = () => (
+    <>
+      <CardHeader className="text-center">
+        <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+          <Lock className="w-8 h-8 text-primary" />
+        </div>
+        <CardTitle className="text-2xl">Imposta Password</CardTitle>
+        <CardDescription>
+          Scegli una password sicura per il tuo account
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent>
+        <form onSubmit={handleResetPassword} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="new-password">Nuova Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="new-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="pl-10"
+                disabled={isLoading}
+                minLength={6}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirm-password">Conferma Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                className="pl-10"
+                disabled={isLoading}
+                minLength={6}
+              />
+            </div>
+          </div>
+
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Salvataggio...
+              </>
+            ) : (
+              "Imposta Password"
+            )}
+          </Button>
+        </form>
+
+        <p className="text-xs text-center text-muted-foreground mt-6">
+          La password deve essere di almeno 6 caratteri.
+        </p>
+      </CardContent>
+    </>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -114,59 +432,9 @@ export default function ClientLogin() {
         </Link>
 
         <Card className="shadow-xl">
-          <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-              <LogIn className="w-8 h-8 text-primary" />
-            </div>
-            <CardTitle className="text-2xl">Portale Clienti</CardTitle>
-            <CardDescription>
-              Accedi per monitorare i tuoi servizi
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="la-tua@email.com"
-                    className="pl-10"
-                    disabled={isLoading}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="pl-10"
-                    disabled={isLoading}
-                  />
-                </div>
-              </div>
-
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Accesso in corso..." : "Accedi"}
-              </Button>
-            </form>
-
-            <p className="text-xs text-center text-muted-foreground mt-6">
-              Le credenziali ti sono state inviate via email al momento della registrazione.
-            </p>
-          </CardContent>
+          {viewMode === "login" && renderLoginForm()}
+          {viewMode === "forgot-password" && renderForgotPasswordForm()}
+          {viewMode === "reset-password" && renderResetPasswordForm()}
         </Card>
       </div>
     </div>
