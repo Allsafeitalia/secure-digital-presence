@@ -709,6 +709,10 @@ const Admin = () => {
                 setSelectedClient(updatedClient);
                 setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
               }}
+              onClientDeleted={() => {
+                setSelectedClient(null);
+                fetchClients();
+              }}
             />
           ) : (
             <div className="h-full flex items-center justify-center text-muted-foreground">

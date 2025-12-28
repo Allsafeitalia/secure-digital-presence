@@ -5,6 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Building2,
   Mail,
   Phone,
@@ -70,6 +81,7 @@ interface ClientDetailsProps {
   client: Client;
   onBack: () => void;
   onClientUpdate?: (client: Client) => void;
+  onClientDeleted?: () => void;
 }
 
 const serviceTypeLabels: Record<ServiceType, string> = {
@@ -107,13 +119,14 @@ const statusLabels: Record<ServiceStatus, string> = {
   cancelled: "Cancellato",
 };
 
-export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate }: ClientDetailsProps) => {
+export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, onClientDeleted }: ClientDetailsProps) => {
   const { toast } = useToast();
   const [client, setClient] = useState(initialClient);
   const [services, setServices] = useState<ClientService[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddService, setShowAddService] = useState(false);
   const [showEditClient, setShowEditClient] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     setClient(initialClient);
@@ -218,6 +231,48 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate }:
     onClientUpdate?.(updatedClient);
   };
 
+  const deleteClient = async () => {
+    setIsDeleting(true);
+    
+    // First delete all services associated with this client
+    const { error: servicesError } = await supabase
+      .from("client_services")
+      .delete()
+      .eq("client_id", client.id);
+
+    if (servicesError) {
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare i servizi del cliente",
+        variant: "destructive",
+      });
+      setIsDeleting(false);
+      return;
+    }
+
+    // Then delete the client
+    const { error: clientError } = await supabase
+      .from("clients")
+      .delete()
+      .eq("id", client.id);
+
+    if (clientError) {
+      toast({
+        title: "Errore",
+        description: "Impossibile eliminare il cliente",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Cliente eliminato",
+        description: "Il cliente è stato rimosso con successo",
+      });
+      onClientDeleted?.();
+    }
+    
+    setIsDeleting(false);
+  };
+
   const fullAddress = [
     client.address,
     client.city,
@@ -241,6 +296,40 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate }:
             <Edit className="w-4 h-4" />
             <span className="hidden sm:inline ml-1">Modifica</span>
           </Button>
+          
+          {/* Delete button - only visible when client is deactivated */}
+          {client.is_active === false && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  disabled={isDeleting}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span className="hidden sm:inline ml-1">Elimina</span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Questa azione è irreversibile. Verranno eliminati permanentemente il cliente 
+                    <strong> {client.name}</strong> e tutti i suoi {services.length} servizi associati.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annulla</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={deleteClient}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Elimina
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </div>
 
