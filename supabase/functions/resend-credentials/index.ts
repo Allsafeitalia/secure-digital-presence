@@ -44,7 +44,7 @@ const handler = async (req: Request): Promise<Response> => {
     const resend = new Resend(resendApiKey);
 
     const { clientId, email, name }: ResendCredentialsRequest = await req.json();
-    console.log(`Resending credentials for client: ${name} (${email})`);
+    console.log(`Processing credentials for client: ${name} (${email})`);
 
     // Fetch the client to get the user ID
     const { data: clientData, error: clientError } = await supabaseAdmin
@@ -53,27 +53,68 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("id", clientId)
       .single();
 
-    if (clientError || !clientData?.client_user_id) {
-      console.error("Client not found or no user linked:", clientError);
-      throw new Error("Client account not found. Please create an account first.");
+    if (clientError) {
+      console.error("Client not found:", clientError);
+      throw new Error("Client not found.");
     }
 
     // Generate new temporary password
     const temporaryPassword = generateTemporaryPassword();
     console.log("Generated new temporary password");
 
-    // Update user password
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-      clientData.client_user_id,
-      { password: temporaryPassword }
-    );
+    let userId = clientData?.client_user_id;
 
-    if (updateError) {
-      console.error("Error updating password:", updateError);
-      throw new Error(`Failed to reset password: ${updateError.message}`);
+    // If no user account exists, create one
+    if (!userId) {
+      console.log("No user account found, creating new one...");
+      
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: temporaryPassword,
+        email_confirm: true,
+        user_metadata: {
+          name,
+          client_id: clientId,
+          is_client: true,
+        },
+      });
+
+      if (authError) {
+        console.error("Error creating auth user:", authError);
+        throw new Error(`Failed to create user account: ${authError.message}`);
+      }
+
+      userId = authData.user.id;
+      console.log("Auth user created:", userId);
+
+      // Update the client record with the user ID
+      const { error: updateError } = await supabaseAdmin
+        .from("clients")
+        .update({ client_user_id: userId })
+        .eq("id", clientId);
+
+      if (updateError) {
+        console.error("Error updating client with user ID:", updateError);
+        // Clean up the created user
+        await supabaseAdmin.auth.admin.deleteUser(userId);
+        throw new Error(`Failed to link user to client: ${updateError.message}`);
+      }
+
+      console.log("Client record updated with user ID");
+    } else {
+      // Update existing user password
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        { password: temporaryPassword }
+      );
+
+      if (updateError) {
+        console.error("Error updating password:", updateError);
+        throw new Error(`Failed to reset password: ${updateError.message}`);
+      }
+
+      console.log("Password updated for user:", userId);
     }
-
-    console.log("Password updated for user:", clientData.client_user_id);
 
     // Get the site URL for the email
     const siteUrl = Deno.env.get("SITE_URL") || "https://kthxektvgaidqjetjsur.lovableproject.com";
@@ -82,7 +123,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { error: emailError } = await resend.emails.send({
       from: "Assistenza <onboarding@resend.dev>",
       to: [email],
-      subject: "Le tue nuove credenziali di accesso",
+      subject: userId === clientData?.client_user_id ? "Le tue nuove credenziali di accesso" : "Benvenuto - Le tue credenziali di accesso",
       html: `
         <!DOCTYPE html>
         <html>
@@ -92,17 +133,20 @@ const handler = async (req: Request): Promise<Response> => {
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">Nuove Credenziali</h1>
+            <h1 style="color: white; margin: 0; font-size: 24px;">${userId === clientData?.client_user_id ? 'Nuove Credenziali' : `Benvenuto, ${name}!`}</h1>
           </div>
           
           <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
             <p>Ciao ${name},</p>
-            <p>Abbiamo generato una nuova password per il tuo account. Utilizza le credenziali qui sotto per accedere.</p>
+            <p>${userId === clientData?.client_user_id 
+              ? 'Abbiamo generato una nuova password per il tuo account. Utilizza le credenziali qui sotto per accedere.'
+              : 'Il tuo account è stato creato con successo. Puoi accedere al tuo pannello di controllo per monitorare lo stato dei tuoi servizi.'
+            }</p>
             
             <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border: 1px solid #e5e7eb;">
-              <h3 style="margin-top: 0; color: #4f46e5;">Le tue nuove credenziali</h3>
+              <h3 style="margin-top: 0; color: #4f46e5;">Le tue credenziali</h3>
               <p style="margin: 10px 0;"><strong>Email:</strong> ${email}</p>
-              <p style="margin: 10px 0;"><strong>Nuova Password:</strong> <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${temporaryPassword}</code></p>
+              <p style="margin: 10px 0;"><strong>Password:</strong> <code style="background: #f3f4f6; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${temporaryPassword}</code></p>
             </div>
             
             <p style="color: #6b7280; font-size: 14px;">
@@ -136,7 +180,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "New credentials sent successfully" 
+        message: userId === clientData?.client_user_id ? "New credentials sent successfully" : "Account created and credentials sent" 
       }),
       {
         status: 200,
