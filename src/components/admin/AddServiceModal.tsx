@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Save, X, Server, Globe, HardDrive } from "lucide-react";
+import { Plus, Save, X, Server, Globe, HardDrive, Activity } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type ServiceType = Database["public"]["Enums"]["service_type"];
@@ -75,6 +75,7 @@ export const AddServiceModal = ({
     description: "",
     server_name: "",
     domain_name: "",
+    url_to_monitor: "",
     expiration_date: "",
     billing_cycle: "yearly" as BillingCycle,
     status: "active" as ServiceStatus,
@@ -98,6 +99,7 @@ export const AddServiceModal = ({
         description: formData.description || null,
         server_name: formData.server_name || null,
         domain_name: formData.domain_name || null,
+        url_to_monitor: formData.url_to_monitor || null,
         expiration_date: formData.expiration_date || null,
         billing_cycle: formData.billing_cycle,
         status: formData.status,
@@ -121,6 +123,7 @@ export const AddServiceModal = ({
         description: "",
         server_name: "",
         domain_name: "",
+        url_to_monitor: "",
         expiration_date: "",
         billing_cycle: "yearly",
         status: "active",
@@ -141,6 +144,7 @@ export const AddServiceModal = ({
 
   const showServerField = formData.service_type === "backup" || formData.service_type === "hosting";
   const showDomainField = formData.service_type === "website" || formData.service_type === "domain" || formData.service_type === "hosting";
+  const showMonitorField = formData.service_type === "website" || formData.service_type === "hosting";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -222,6 +226,24 @@ export const AddServiceModal = ({
                 onChange={(e) => handleChange("server_name", e.target.value)}
                 placeholder="es. server-backup-01"
               />
+            </div>
+          )}
+
+          {showMonitorField && (
+            <div className="space-y-2">
+              <Label htmlFor="url_to_monitor" className="flex items-center gap-2">
+                <Activity className="w-4 h-4" />
+                URL da Monitorare
+              </Label>
+              <Input
+                id="url_to_monitor"
+                value={formData.url_to_monitor}
+                onChange={(e) => handleChange("url_to_monitor", e.target.value)}
+                placeholder="es. https://esempio.it"
+              />
+              <p className="text-xs text-muted-foreground">
+                Il sistema controllerà automaticamente se questo URL è raggiungibile
+              </p>
             </div>
           )}
 
