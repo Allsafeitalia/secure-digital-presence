@@ -280,7 +280,20 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
     setIsResendingCredentials(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('resend-credentials', {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) {
+        throw new Error("Sessione non valida. Effettua nuovamente l'accesso e riprova.");
+      }
+
+      const { data, error } = await supabase.functions.invoke("resend-credentials", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: {
           clientId: client.id,
           email: client.email,
