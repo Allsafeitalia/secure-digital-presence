@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { Resend } from "npm:resend@4.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,6 +25,12 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+    const resendKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendKey) {
+      throw new Error("Email provider non configurato (RESEND_API_KEY mancante)");
+    }
+    const resend = new Resend(resendKey);
+
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
@@ -32,9 +39,8 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     const { clientId, email, name }: ResendCredentialsRequest = await req.json();
-    console.log(`Processing credentials resend for client: ${name} (${email})`);
+    console.log("Processing resend for", { clientId, email, name });
 
-    // Fetch the client to get the user ID
     const { data: clientData, error: clientError } = await supabaseAdmin
       .from("clients")
       .select("client_user_id")
@@ -48,124 +54,98 @@ const handler = async (req: Request): Promise<Response> => {
 
     const siteUrl = Deno.env.get("SITE_URL") || "https://kthxektvgaidqjetjsur.lovableproject.com";
     const redirectTo = `${siteUrl}/client-login`;
+    const from = Deno.env.get("RESEND_FROM") || "Assistenza <onboarding@resend.dev>";
 
-    // If no user account exists, invite the user
-    if (!clientData?.client_user_id) {
-      console.log("No user account found, sending invite...");
+    // Decide which link to generate
+    let linkType: "invite" | "recovery" = clientData?.client_user_id ? "recovery" : "invite";
 
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    let linkRes =
+      linkType === "invite"
+        ? await supabaseAdmin.auth.admin.generateLink({
+            type: "invite",
+            email,
+            options: {
+              redirectTo,
+              data: {
+                name,
+                client_id: clientId,
+                is_client: true,
+              },
+            },
+          })
+        : await supabaseAdmin.auth.admin.generateLink({
+            type: "recovery",
+            email,
+            options: { redirectTo },
+          });
+
+    // If invite fails because the user already exists, fall back to recovery.
+    if (linkType === "invite" && (linkRes.error || !linkRes.data?.properties?.action_link)) {
+      console.warn("Invite generation failed, fallback to recovery:", linkRes.error);
+      linkType = "recovery";
+      linkRes = await supabaseAdmin.auth.admin.generateLink({
+        type: "recovery",
         email,
-        {
-          redirectTo,
-          data: {
-            name,
-            client_id: clientId,
-            is_client: true,
-          },
-        }
-      );
+        options: { redirectTo },
+      });
+    }
 
-      if (authError) {
-        console.error("Error inviting user:", authError);
-        throw new Error(`Impossibile inviare l'invito: ${authError.message}`);
-      }
-
-      // Update the client record with the user ID
-      const { error: updateError } = await supabaseAdmin
-        .from("clients")
-        .update({ client_user_id: authData.user.id })
-        .eq("id", clientId);
-
-      if (updateError) {
-        console.error("Error updating client with user ID:", updateError);
-        await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-        throw new Error(`Impossibile collegare l'utente al cliente: ${updateError.message}`);
-      }
-
-      console.log("User invited and client updated:", authData.user.id);
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Invito inviato con successo",
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+    if (linkRes.error || !linkRes.data?.properties?.action_link) {
+      console.error("Error generating link:", linkRes.error);
+      throw new Error(
+        `Impossibile generare il link: ${linkRes.error?.message || "errore sconosciuto"}`
       );
     }
 
-    // User exists, generate a password recovery link
-    console.log("User exists, generating recovery link...");
+    const userId = linkRes.data.user.id;
+    const actionLink = linkRes.data.properties.action_link;
 
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: "recovery",
-      email,
-      options: {
-        redirectTo,
-      },
-    });
+    // Ensure client is linked to user id (safe even if already set)
+    const { error: updateError } = await supabaseAdmin
+      .from("clients")
+      .update({ client_user_id: userId })
+      .eq("id", clientId);
 
-    if (linkError) {
-      console.error("Error generating recovery link:", linkError);
-      throw new Error(`Impossibile generare il link di recupero: ${linkError.message}`);
+    if (updateError) {
+      console.error("Error updating client with user ID:", updateError);
+      throw new Error(`Impossibile collegare l'utente al cliente: ${updateError.message}`);
     }
 
-    console.log("Recovery link generated successfully");
+    const subject = linkType === "invite" ? "Imposta la tua password" : "Reimposta la tua password";
+    const cta = linkType === "invite" ? "Imposta password" : "Reimposta password";
 
-    // The link is in linkData.properties.action_link
-    // Supabase will send the email automatically when using generateLink with type "recovery"
-    // But we need to use a different approach - use resetPasswordForEmail which sends the email
-
-    // Actually, generateLink doesn't send email, we need to use a different method
-    // Let's use the admin API to send a recovery email directly
-
-    // Delete the approach above and use the proper method
-    const { error: recoveryError } = await supabaseAdmin.auth.admin.generateLink({
-      type: "recovery",
-      email,
-      options: {
-        redirectTo,
-      },
+    const emailResponse = await resend.emails.send({
+      from,
+      to: [email],
+      subject,
+      html: `
+        <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; line-height: 1.6;">
+          <h2 style="margin: 0 0 12px;">Ciao ${name},</h2>
+          <p style="margin: 0 0 12px;">
+            ${
+              linkType === "invite"
+                ? "Ecco il link per impostare la tua password e accedere al portale clienti."
+                : "Ecco il link per reimpostare la tua password del portale clienti."
+            }
+          </p>
+          <p style="margin: 0 0 16px;">
+            <a href="${actionLink}" style="display: inline-block; padding: 10px 14px; border-radius: 10px; text-decoration: none; background: #111827; color: #ffffff;">
+              ${cta}
+            </a>
+          </p>
+          <p style="margin: 0 0 8px; color: #6b7280; font-size: 14px;">Se il pulsante non funziona, copia e incolla questo link nel browser:</p>
+          <p style="margin: 0; font-size: 12px; word-break: break-all; color: #111827;">${actionLink}</p>
+        </div>
+      `,
     });
 
-    // The generateLink doesn't send email, we need to trigger password reset differently
-    // Let's use the public resetPasswordForEmail but we need to call it server-side
-
-    // Actually, let's use a workaround: update user to trigger a new invite
-    const { error: updateUserError } = await supabaseAdmin.auth.admin.updateUserById(
-      clientData.client_user_id,
-      {
-        email_confirm: false,
-      }
-    );
-
-    // Then re-invite
-    // Actually this is getting complex. Let's use the built-in Supabase auth recovery flow
-    // We'll generate the link and it will be sent by Supabase automatically
-
-    // The cleanest way is to just use resetPasswordForEmail from client-side
-    // But since we want to do it from admin, let's generate the link and include it in response
-
-    // For now, let's just re-invite the user which will send a new invite email
-    // First delete the old user and create new
-    
-    // Actually, the simplest approach: use generateLink and the link IS in the response
-    // We need to send this link via our own email... but we removed Resend
-
-    // Let me reconsider: Supabase's inviteUserByEmail sends the email automatically using Supabase's SMTP
-    // So we can just use that. But for existing users, we need recovery.
-
-    // For recovery, Supabase's built-in flow is to use resetPasswordForEmail on client side
-    // Let's just confirm the flow works: if user doesn't exist we invite, if exists we tell frontend
-    // to trigger the recovery flow
+    console.log("Email sent via Resend:", { id: emailResponse?.data?.id, linkType, userId });
 
     return new Response(
       JSON.stringify({
         success: true,
-        userExists: true,
-        message: "Per reimpostare la password, usa la funzione 'Password dimenticata' nella pagina di login",
+        userExists: linkType === "recovery",
+        message: linkType === "invite" ? "Invito inviato" : "Recupero password inviato",
       }),
       {
         status: 200,
@@ -174,13 +154,10 @@ const handler = async (req: Request): Promise<Response> => {
     );
   } catch (error: any) {
     console.error("Error in resend-credentials:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 };
 

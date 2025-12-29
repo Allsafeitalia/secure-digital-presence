@@ -282,15 +282,23 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
     try {
       const {
         data: { session },
+        error: sessionError,
       } = await supabase.auth.getSession();
 
+      if (sessionError) throw sessionError;
       if (!session) {
         throw new Error("Sessione scaduta. Effettua nuovamente l'accesso e riprova.");
       }
 
-      // Do NOT override Authorization headers here.
-      // Let the client attach/refresh the JWT automatically.
+      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) throw refreshError;
+
+      const accessToken = refreshed.session?.access_token ?? session.access_token;
+
       const { data, error } = await supabase.functions.invoke("resend-credentials", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: {
           clientId: client.id,
           email: client.email,
@@ -302,9 +310,8 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
 
       if (data?.userExists) {
         toast({
-          title: "Utente esistente",
-          description:
-            "Il cliente ha già un account. Può usare 'Password dimenticata' nella pagina di login.",
+          title: "Recupero password inviato",
+          description: `Email inviata a ${client.email} per reimpostare la password.`,
         });
       } else {
         toast({
