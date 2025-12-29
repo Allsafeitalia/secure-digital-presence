@@ -211,7 +211,7 @@ export function EmailSettings() {
               ) : (
                 <>
                   <p><strong>Esito:</strong> KO</p>
-                  <p className="text-muted-foreground">{pingResult.error}</p>
+                  <p className="text-muted-foreground">{"error" in pingResult ? pingResult.error : "Errore sconosciuto"}</p>
                 </>
               )}
             </div>
