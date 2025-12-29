@@ -19,12 +19,14 @@ import {
   Users,
   UserPlus,
   Settings,
+  AlertTriangle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { CreateClientModal } from "@/components/admin/CreateClientModal";
 import { ClientDetails } from "@/components/admin/ClientDetails";
 import { EmailSettings } from "@/components/admin/EmailSettings";
+import { CancellationRequests } from "@/components/admin/CancellationRequests";
 
 interface ContactTicket {
   id: string;
@@ -58,7 +60,7 @@ interface Client {
   is_active?: boolean;
 }
 
-type ViewMode = "tickets" | "clients" | "settings";
+type ViewMode = "tickets" | "clients" | "cancellations" | "settings";
 
 const Admin = () => {
   const [tickets, setTickets] = useState<ContactTicket[]>([]);
@@ -291,19 +293,23 @@ const Admin = () => {
                 <Ticket className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               ) : viewMode === "clients" ? (
                 <Users className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+              ) : viewMode === "cancellations" ? (
+                <AlertTriangle className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               ) : (
                 <Settings className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               )}
             </div>
             <div className="min-w-0">
               <h1 className="font-display font-bold text-sm md:text-lg truncate">
-                {viewMode === "tickets" ? "Ticket" : viewMode === "clients" ? "Clienti" : "Impostazioni"}
+                {viewMode === "tickets" ? "Ticket" : viewMode === "clients" ? "Clienti" : viewMode === "cancellations" ? "Richieste" : "Impostazioni"}
               </h1>
               <p className="text-muted-foreground text-xs md:text-sm hidden md:block">
                 {viewMode === "tickets"
                   ? "Gestisci le richieste di contatto"
                   : viewMode === "clients"
                   ? `${clients.length} clienti registrati`
+                  : viewMode === "cancellations"
+                  ? "Gestisci richieste di disattivazione"
                   : "Configura le impostazioni del sistema"}
               </p>
             </div>
@@ -339,6 +345,21 @@ const Admin = () => {
               >
                 <Users className="w-3.5 h-3.5 md:w-4 md:h-4 inline-block md:mr-2" />
                 <span className="hidden md:inline">Clienti</span>
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode("cancellations");
+                  setSelectedTicket(null);
+                  setSelectedClient(null);
+                }}
+                className={`px-2 md:px-4 py-1.5 md:py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
+                  viewMode === "cancellations"
+                    ? "bg-background shadow-sm"
+                    : "hover:bg-background/50"
+                }`}
+              >
+                <AlertTriangle className="w-3.5 h-3.5 md:w-4 md:h-4 inline-block md:mr-2" />
+                <span className="hidden md:inline">Richieste</span>
               </button>
               <button
                 onClick={() => {
@@ -378,7 +399,7 @@ const Admin = () => {
 
       <div className="flex flex-col md:flex-row h-[calc(100vh-57px)] md:h-[calc(100vh-73px)]">
         {/* Sidebar - Hidden on mobile when item selected */}
-        <aside className={`${viewMode === "settings" ? "hidden" : (selectedTicket || selectedClient) ? "hidden md:flex" : "flex"} w-full md:w-80 bg-card md:border-r border-border flex-col h-full md:h-auto`}>
+        <aside className={`${viewMode === "settings" || viewMode === "cancellations" ? "hidden" : (selectedTicket || selectedClient) ? "hidden md:flex" : "flex"} w-full md:w-80 bg-card md:border-r border-border flex-col h-full md:h-auto`}>
           {viewMode === "tickets" ? (
             <>
               {/* Stats */}
@@ -554,8 +575,10 @@ const Admin = () => {
         </aside>
 
         {/* Main Content - Hidden on mobile when no item selected */}
-        <main className={`${(selectedTicket || selectedClient || viewMode === "settings") ? 'flex' : 'hidden md:flex'} flex-1 overflow-y-auto flex-col`}>
-          {viewMode === "settings" ? (
+        <main className={`${(selectedTicket || selectedClient || viewMode === "settings" || viewMode === "cancellations") ? 'flex' : 'hidden md:flex'} flex-1 overflow-y-auto flex-col`}>
+          {viewMode === "cancellations" ? (
+            <CancellationRequests />
+          ) : viewMode === "settings" ? (
             <div className="p-4 md:p-8 max-w-3xl w-full mx-auto">
               <EmailSettings />
             </div>
