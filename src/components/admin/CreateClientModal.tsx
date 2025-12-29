@@ -89,17 +89,9 @@ export const CreateClientModal = ({
         throw new Error("Sessione scaduta. Effettua nuovamente l'accesso e riprova.");
       }
 
-      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) throw refreshError;
-
-      const accessToken = refreshed.session?.access_token ?? session.access_token;
-
       const { data: accountData, error: accountError } = await supabase.functions.invoke(
         "create-client-account",
         {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
           body: {
             clientId: clientData.id,
             email: formData.email,

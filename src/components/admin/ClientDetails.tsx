@@ -290,15 +290,7 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
         throw new Error("Sessione scaduta. Effettua nuovamente l'accesso e riprova.");
       }
 
-      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) throw refreshError;
-
-      const accessToken = refreshed.session?.access_token ?? session.access_token;
-
       const { data, error } = await supabase.functions.invoke("resend-credentials", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
         body: {
           clientId: client.id,
           email: client.email,
