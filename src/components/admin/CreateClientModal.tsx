@@ -89,14 +89,19 @@ export const CreateClientModal = ({
         throw new Error("Sessione scaduta. Effettua nuovamente l'accesso e riprova.");
       }
 
-      const { error: refreshError } = await supabase.auth.refreshSession();
+      // Refresh and use the freshest access token explicitly (avoids gateway JWT issues)
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
       if (refreshError) {
         console.warn("Unable to refresh session before invoking function:", refreshError);
       }
+      const accessToken = refreshData?.session?.access_token ?? session.access_token;
 
       const { data: accountData, error: accountError } = await supabase.functions.invoke(
         "create-client-account",
         {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
           body: {
             clientId: clientData.id,
             email: formData.email,
@@ -104,6 +109,7 @@ export const CreateClientModal = ({
           },
         }
       );
+
 
       if (accountError) {
         console.error("Error creating account:", accountError);
