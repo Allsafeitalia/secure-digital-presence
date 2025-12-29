@@ -21,6 +21,12 @@ export function EmailSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const [pingResult, setPingResult] = useState<
+    | { ok: true; time: string; received?: { hasAuthHeader: boolean; hasApiKey: boolean } }
+    | { ok: false; error: string }
+    | null
+  >(null);
+
 
   useEffect(() => {
     fetchSettings();
@@ -50,6 +56,23 @@ export function EmailSettings() {
     }
   };
 
+
+  const testPing = async () => {
+    setPingResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("ping", {
+        body: { source: "admin-email-settings", ts: Date.now() },
+      });
+      if (error) throw error;
+      setPingResult({ ok: true, time: data?.time ?? new Date().toISOString(), received: data?.received });
+      toast.success("Ping OK: la funzione risponde correttamente");
+    } catch (e: any) {
+      const msg = String(e?.message ?? e);
+      setPingResult({ ok: false, error: msg });
+      toast.error(`Ping fallito: ${msg}`);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -70,7 +93,11 @@ export function EmailSettings() {
     } catch (error: any) {
       console.error("Error saving email settings:", error);
       const msg = String(error?.message ?? "");
-      toast.error(/jwt/i.test(msg) ? "Accesso richiesto: effettua il login admin" : "Errore nel salvataggio delle impostazioni");
+      toast.error(
+        /jwt/i.test(msg)
+          ? "Accesso richiesto: effettua il login admin"
+          : "Errore nel salvataggio delle impostazioni"
+      );
     } finally {
       setSaving(false);
     }
@@ -161,6 +188,39 @@ export function EmailSettings() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Diagnostica</CardTitle>
+          <CardDescription>
+            Test rapido per verificare che le funzioni backend siano raggiungibili dal browser.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button variant="outline" onClick={testPing}>
+            Test API (ping)
+          </Button>
+
+          {pingResult && (
+            <div className="rounded-lg bg-muted p-4 text-sm space-y-1">
+              {pingResult.ok ? (
+                <>
+                  <p><strong>Esito:</strong> OK</p>
+                  <p><strong>Ora server:</strong> {pingResult.time}</p>
+                  <p className="text-muted-foreground">
+                    Headers ricevuti: auth={String(pingResult.received?.hasAuthHeader ?? false)}, apikey={String(pingResult.received?.hasApiKey ?? false)}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p><strong>Esito:</strong> KO</p>
+                  <p className="text-muted-foreground">{pingResult.error}</p>
+                </>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Informazioni SMTP</CardTitle>
           <CardDescription>
             Le email vengono inviate tramite Resend. La chiave API è già configurata nei secrets del progetto.
@@ -179,3 +239,4 @@ export function EmailSettings() {
     </div>
   );
 }
+
