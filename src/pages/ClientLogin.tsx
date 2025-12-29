@@ -242,6 +242,37 @@ export default function ClientLogin() {
     setIsLoading(true);
 
     try {
+      // Check if we have a session, if not try to establish one from the URL hash
+      let currentSession = session;
+      
+      if (!currentSession) {
+        // Try to get session from hash tokens
+        const hash = window.location.hash;
+        if (hash) {
+          const hashParams = new URLSearchParams(hash.substring(1));
+          const accessToken = hashParams.get("access_token");
+          const refreshToken = hashParams.get("refresh_token");
+          
+          if (accessToken && refreshToken) {
+            const { data, error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            
+            if (sessionError) {
+              console.error("Session error:", sessionError);
+              throw new Error("Link scaduto o non valido. Richiedi un nuovo invito.");
+            }
+            
+            currentSession = data.session;
+          }
+        }
+      }
+      
+      if (!currentSession) {
+        throw new Error("Sessione non trovata. Richiedi un nuovo invito.");
+      }
+
       const { error } = await supabase.auth.updateUser({
         password,
       });
@@ -256,6 +287,9 @@ export default function ClientLogin() {
       // Clear the hash from URL and reset auth flow detection
       window.history.replaceState(null, "", window.location.pathname);
       authFlowRef.current = { isRecoveryOrInvite: false, type: null };
+      
+      // Sign out so they can login fresh with new password
+      await supabase.auth.signOut();
       
       setViewMode("login");
       setPassword("");
