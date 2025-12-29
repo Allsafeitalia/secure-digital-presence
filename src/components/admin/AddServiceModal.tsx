@@ -144,7 +144,8 @@ export const AddServiceModal = ({
 
   const showServerField = formData.service_type === "backup" || formData.service_type === "hosting";
   const showDomainField = formData.service_type === "website" || formData.service_type === "domain" || formData.service_type === "hosting";
-  const showMonitorField = formData.service_type === "website" || formData.service_type === "hosting";
+  // Show monitor field for ALL service types
+  const showMonitorField = true;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
