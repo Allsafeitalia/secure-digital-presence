@@ -13,6 +13,28 @@ interface CreateClientAccountRequest {
   name: string;
 }
 
+async function getEmailSettings(supabaseAdmin: any): Promise<{ from: string; siteUrl: string }> {
+  const { data, error } = await supabaseAdmin
+    .from("email_settings")
+    .select("setting_key, setting_value");
+
+  if (error) {
+    console.warn("Error fetching email settings, using defaults:", error);
+  }
+
+  const settings: Record<string, string> = {};
+  if (data) {
+    for (const row of data) {
+      settings[row.setting_key] = row.setting_value;
+    }
+  }
+
+  return {
+    from: settings["RESEND_FROM"] || "Assistenza <onboarding@resend.dev>",
+    siteUrl: settings["SITE_URL"] || "https://kthxektvgaidqjetjsur.lovableproject.com",
+  };
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("create-client-account function called");
 
@@ -41,11 +63,10 @@ const handler = async (req: Request): Promise<Response> => {
     }
     const resend = new Resend(resendKey);
 
-    // Get the site URL for the redirect
-    const siteUrl = Deno.env.get("SITE_URL") || "https://kthxektvgaidqjetjsur.lovableproject.com";
+    // Get configurable settings from database
+    const { from, siteUrl } = await getEmailSettings(supabaseAdmin);
     const redirectTo = `${siteUrl}/client-login`;
-
-    const from = Deno.env.get("RESEND_FROM") || "Assistenza <onboarding@resend.dev>";
+    console.log("Using email settings:", { from, siteUrl, redirectTo });
 
     // Generate an invite (or recovery) link and send it via Resend
     let linkType: "invite" | "recovery" = "invite";

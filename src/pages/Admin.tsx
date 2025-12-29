@@ -18,11 +18,13 @@ import {
   Building2,
   Users,
   UserPlus,
+  Settings,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { CreateClientModal } from "@/components/admin/CreateClientModal";
 import { ClientDetails } from "@/components/admin/ClientDetails";
+import { EmailSettings } from "@/components/admin/EmailSettings";
 
 interface ContactTicket {
   id: string;
@@ -56,7 +58,7 @@ interface Client {
   is_active?: boolean;
 }
 
-type ViewMode = "tickets" | "clients";
+type ViewMode = "tickets" | "clients" | "settings";
 
 const Admin = () => {
   const [tickets, setTickets] = useState<ContactTicket[]>([]);
@@ -287,18 +289,22 @@ const Admin = () => {
             <div className="w-8 h-8 md:w-10 md:h-10 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
               {viewMode === "tickets" ? (
                 <Ticket className="w-4 h-4 md:w-5 md:h-5 text-primary" />
-              ) : (
+              ) : viewMode === "clients" ? (
                 <Users className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+              ) : (
+                <Settings className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               )}
             </div>
             <div className="min-w-0">
               <h1 className="font-display font-bold text-sm md:text-lg truncate">
-                {viewMode === "tickets" ? "Ticket" : "Clienti"}
+                {viewMode === "tickets" ? "Ticket" : viewMode === "clients" ? "Clienti" : "Impostazioni"}
               </h1>
               <p className="text-muted-foreground text-xs md:text-sm hidden md:block">
                 {viewMode === "tickets"
                   ? "Gestisci le richieste di contatto"
-                  : `${clients.length} clienti registrati`}
+                  : viewMode === "clients"
+                  ? `${clients.length} clienti registrati`
+                  : "Configura le impostazioni del sistema"}
               </p>
             </div>
           </div>
@@ -334,6 +340,21 @@ const Admin = () => {
                 <Users className="w-3.5 h-3.5 md:w-4 md:h-4 inline-block md:mr-2" />
                 <span className="hidden md:inline">Clienti</span>
               </button>
+              <button
+                onClick={() => {
+                  setViewMode("settings");
+                  setSelectedTicket(null);
+                  setSelectedClient(null);
+                }}
+                className={`px-2 md:px-4 py-1.5 md:py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
+                  viewMode === "settings"
+                    ? "bg-background shadow-sm"
+                    : "hover:bg-background/50"
+                }`}
+              >
+                <Settings className="w-3.5 h-3.5 md:w-4 md:h-4 inline-block md:mr-2" />
+                <span className="hidden md:inline">Impostazioni</span>
+              </button>
             </div>
             <Button
               variant="outline"
@@ -357,7 +378,7 @@ const Admin = () => {
 
       <div className="flex flex-col md:flex-row h-[calc(100vh-57px)] md:h-[calc(100vh-73px)]">
         {/* Sidebar - Hidden on mobile when item selected */}
-        <aside className={`${(selectedTicket || selectedClient) ? 'hidden md:flex' : 'flex'} w-full md:w-80 bg-card md:border-r border-border flex-col h-full md:h-auto`}>
+        <aside className={`${(selectedTicket || selectedClient || viewMode === "settings") ? 'hidden md:hidden' : 'flex'} ${viewMode === "settings" ? 'hidden' : ''} w-full md:w-80 bg-card md:border-r border-border flex-col h-full md:h-auto md:flex`}>
           {viewMode === "tickets" ? (
             <>
               {/* Stats */}
@@ -533,8 +554,12 @@ const Admin = () => {
         </aside>
 
         {/* Main Content - Hidden on mobile when no item selected */}
-        <main className={`${(selectedTicket || selectedClient) ? 'flex' : 'hidden md:flex'} flex-1 overflow-y-auto flex-col`}>
-          {viewMode === "tickets" && selectedTicket ? (
+        <main className={`${(selectedTicket || selectedClient || viewMode === "settings") ? 'flex' : 'hidden md:flex'} flex-1 overflow-y-auto flex-col`}>
+          {viewMode === "settings" ? (
+            <div className="p-4 md:p-8 max-w-3xl w-full mx-auto">
+              <EmailSettings />
+            </div>
+          ) : viewMode === "tickets" && selectedTicket ? (
             <div className="p-4 md:p-8 max-w-3xl w-full">
               {/* Mobile Back Button */}
               <Button
