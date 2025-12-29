@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { Resend } from "npm:resend@4.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,44 +34,98 @@ const handler = async (req: Request): Promise<Response> => {
     const { clientId, email, name }: CreateClientAccountRequest = await req.json();
     console.log(`Creating account for client: ${name} (${email})`);
 
+    // Email provider (Resend)
+    const resendKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendKey) {
+      throw new Error("Email provider non configurato (RESEND_API_KEY mancante)");
+    }
+    const resend = new Resend(resendKey);
+
     // Get the site URL for the redirect
     const siteUrl = Deno.env.get("SITE_URL") || "https://kthxektvgaidqjetjsur.lovableproject.com";
     const redirectTo = `${siteUrl}/client-login`;
 
-    // Invite user by email - Supabase will send the invite email automatically
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    const from = Deno.env.get("RESEND_FROM") || "Assistenza <onboarding@resend.dev>";
+
+    // Generate an invite (or recovery) link and send it via Resend
+    let linkType: "invite" | "recovery" = "invite";
+
+    const inviteRes = await supabaseAdmin.auth.admin.generateLink({
+      type: "invite",
       email,
-      {
+      options: {
         redirectTo,
         data: {
           name,
           client_id: clientId,
           is_client: true,
         },
-      }
-    );
+      },
+    });
 
-    if (authError) {
-      console.error("Error inviting user:", authError);
-      throw new Error(`Impossibile inviare l'invito: ${authError.message}`);
+    let linkData = inviteRes.data;
+    if (inviteRes.error || !inviteRes.data?.properties?.action_link) {
+      console.warn("Invite link failed, falling back to recovery:", inviteRes.error);
+      linkType = "recovery";
+      const recoveryRes = await supabaseAdmin.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: { redirectTo },
+      });
+      if (recoveryRes.error || !recoveryRes.data?.properties?.action_link) {
+        console.error("Error generating recovery link:", recoveryRes.error);
+        throw new Error(
+          `Impossibile generare il link: ${recoveryRes.error?.message || "errore sconosciuto"}`
+        );
+      }
+      linkData = recoveryRes.data;
     }
 
-    console.log("User invited:", authData.user.id);
+    const userId = linkData!.user.id;
+    const actionLink = linkData!.properties.action_link;
+
+    const subject = linkType === "invite" ? "Imposta la tua password" : "Reimposta la tua password";
+    const cta = linkType === "invite" ? "Imposta password" : "Reimposta password";
+
+    const emailResponse = await resend.emails.send({
+      from,
+      to: [email],
+      subject,
+      html: `
+        <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; line-height: 1.6;">
+          <h2 style="margin: 0 0 12px;">Ciao ${name},</h2>
+          <p style="margin: 0 0 12px;">
+            ${
+              linkType === "invite"
+                ? "Hai ricevuto un invito per accedere al portale clienti."
+                : "Hai richiesto di reimpostare la password del portale clienti."
+            }
+          </p>
+          <p style="margin: 0 0 16px;">
+            <a href="${actionLink}" style="display: inline-block; padding: 10px 14px; border-radius: 10px; text-decoration: none; background: #111827; color: #ffffff;">
+              ${cta}
+            </a>
+          </p>
+          <p style="margin: 0 0 8px; color: #6b7280; font-size: 14px;">Se il pulsante non funziona, copia e incolla questo link nel browser:</p>
+          <p style="margin: 0; font-size: 12px; word-break: break-all; color: #111827;">${actionLink}</p>
+        </div>
+      `,
+    });
+
+    console.log("Email sent via Resend:", { id: emailResponse?.data?.id, linkType });
 
     // Update the client record with the user ID
     const { error: updateError } = await supabaseAdmin
       .from("clients")
-      .update({ client_user_id: authData.user.id })
+      .update({ client_user_id: userId })
       .eq("id", clientId);
 
     if (updateError) {
       console.error("Error updating client with user ID:", updateError);
-      // Clean up the created user
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
       throw new Error(`Impossibile collegare l'utente al cliente: ${updateError.message}`);
     }
 
-    console.log("Client record updated with user ID");
+    console.log("Client record updated with user ID", userId);
 
     return new Response(
       JSON.stringify({
