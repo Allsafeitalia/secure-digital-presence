@@ -233,6 +233,7 @@ export type Database = {
           assigned_to: string | null
           client_id: string
           completed_at: string | null
+          cost: number | null
           created_at: string
           description: string | null
           id: string
@@ -250,6 +251,7 @@ export type Database = {
           assigned_to?: string | null
           client_id: string
           completed_at?: string | null
+          cost?: number | null
           created_at?: string
           description?: string | null
           id?: string
@@ -267,6 +269,7 @@ export type Database = {
           assigned_to?: string | null
           client_id?: string
           completed_at?: string | null
+          cost?: number | null
           created_at?: string
           description?: string | null
           id?: string

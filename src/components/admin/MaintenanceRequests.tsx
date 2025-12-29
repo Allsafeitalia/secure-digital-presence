@@ -35,6 +35,7 @@ import {
   RefreshCw,
   Edit,
   FileText,
+  Euro,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -53,6 +54,7 @@ interface MaintenanceRequest {
   resolution_notes: string | null;
   what_was_done: string | null;
   assigned_to: string | null;
+  cost: number | null;
   created_at: string;
   updated_at: string;
   service?: {
@@ -111,6 +113,7 @@ export const MaintenanceRequests = () => {
     assigned_to: "",
     resolution_notes: "",
     what_was_done: "",
+    cost: "",
   });
 
   useEffect(() => {
@@ -214,6 +217,7 @@ export const MaintenanceRequests = () => {
       assigned_to: formData.assigned_to || null,
       resolution_notes: formData.resolution_notes || null,
       what_was_done: formData.what_was_done || null,
+      cost: formData.cost ? parseFloat(formData.cost) : null,
     };
 
     // Se lo stato diventa resolved, closed o not_resolved, imposta completed_at
@@ -258,6 +262,7 @@ export const MaintenanceRequests = () => {
       assigned_to: "",
       resolution_notes: "",
       what_was_done: "",
+      cost: "",
     });
   };
 
@@ -275,6 +280,7 @@ export const MaintenanceRequests = () => {
       assigned_to: request.assigned_to || "",
       resolution_notes: request.resolution_notes || "",
       what_was_done: request.what_was_done || "",
+      cost: request.cost !== null ? request.cost.toString() : "",
     });
     setShowEditModal(true);
   };
@@ -411,7 +417,7 @@ export const MaintenanceRequests = () => {
                       </p>
                     )}
 
-                    {(request.resolution_notes || request.what_was_done) && (
+                    {(request.resolution_notes || request.what_was_done || request.cost !== null) && (
                       <div className="mt-3 p-3 bg-secondary/30 rounded-lg text-sm">
                         {request.what_was_done && (
                           <div className="mb-2">
@@ -420,9 +426,16 @@ export const MaintenanceRequests = () => {
                           </div>
                         )}
                         {request.resolution_notes && (
-                          <div>
+                          <div className="mb-2">
                             <span className="font-medium">Note risoluzione: </span>
                             {request.resolution_notes}
+                          </div>
+                        )}
+                        {request.cost !== null && (
+                          <div className="flex items-center gap-1">
+                            <Euro className="w-4 h-4 text-primary" />
+                            <span className="font-medium">Costo intervento: </span>
+                            <span className="text-primary font-bold">€{request.cost.toFixed(2)}</span>
                           </div>
                         )}
                       </div>
@@ -716,6 +729,21 @@ export const MaintenanceRequests = () => {
                 onChange={(e) => setFormData({ ...formData, resolution_notes: e.target.value })}
                 placeholder="Note aggiuntive sulla risoluzione..."
                 rows={2}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Euro className="w-4 h-4" />
+                Costo Intervento (€)
+              </Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.cost}
+                onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                placeholder="0.00"
               />
             </div>
           </div>
