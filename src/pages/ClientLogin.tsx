@@ -12,24 +12,45 @@ import type { User, Session } from "@supabase/supabase-js";
 
 type ViewMode = "login" | "forgot-password" | "reset-password";
 
-function detectAuthFlowFromHash(): { isRecoveryOrInvite: boolean; type: string | null } {
-  const hash = window.location.hash;
-  if (!hash) return { isRecoveryOrInvite: false, type: null };
-  
-  const hashParams = new URLSearchParams(hash.substring(1));
-  const type = hashParams.get("type");
-  const accessToken = hashParams.get("access_token");
-  
-  if ((type === "recovery" || type === "invite" || type === "magiclink") && accessToken) {
+function detectAuthFlowFromUrl(): { isRecoveryOrInvite: boolean; type: string | null } {
+  const hash = window.location.hash ?? "";
+  const search = window.location.search ?? "";
+
+  const hashParams = hash ? new URLSearchParams(hash.substring(1)) : null;
+  const searchParams = search ? new URLSearchParams(search) : null;
+
+  const type = hashParams?.get("type") ?? searchParams?.get("type");
+  const accessToken = hashParams?.get("access_token");
+  const code = searchParams?.get("code");
+  const token = searchParams?.get("token");
+
+  const isFlowType = type === "recovery" || type === "invite" || type === "magiclink";
+  if (isFlowType && (accessToken || code || token)) {
     return { isRecoveryOrInvite: true, type };
   }
+
   return { isRecoveryOrInvite: false, type: null };
+}
+
+function getUrlTokens(): { access_token: string | null; refresh_token: string | null } {
+  const hash = window.location.hash;
+  if (!hash) return { access_token: null, refresh_token: null };
+
+  const hashParams = new URLSearchParams(hash.substring(1));
+  return {
+    access_token: hashParams.get("access_token"),
+    refresh_token: hashParams.get("refresh_token"),
+  };
+}
+
+function getUrlCode(): string | null {
+  return new URLSearchParams(window.location.search).get("code");
 }
 
 export default function ClientLogin() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -37,38 +58,40 @@ export default function ClientLogin() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [initializing, setInitializing] = useState(true);
-  
-  // Detect auth flow from URL hash IMMEDIATELY (before any async code)
-  const authFlowRef = useRef(detectAuthFlowFromHash());
+
+  // Detect auth flow from URL IMMEDIATELY (before any async code)
+  const authFlowRef = useRef(detectAuthFlowFromUrl());
   const [viewMode, setViewMode] = useState<ViewMode>(
     authFlowRef.current.isRecoveryOrInvite ? "reset-password" : "login"
   );
 
   useEffect(() => {
     let isMounted = true;
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
-      
+
       console.log("Auth state change:", event, session?.user?.email);
-      
+
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       // Handle PASSWORD_RECOVERY event from Supabase
       if (event === "PASSWORD_RECOVERY") {
         setViewMode("reset-password");
         setInitializing(false);
         return;
       }
-      
-      // If we detected recovery/invite from hash, stay on reset-password
+
+      // If we detected recovery/invite from URL, stay on reset-password
       if (authFlowRef.current.isRecoveryOrInvite) {
         setViewMode("reset-password");
         setInitializing(false);
         return;
       }
-      
+
       // Only redirect to portal if user is logged in AND we're not in a password flow
       if (session?.user && event === "SIGNED_IN") {
         const isClient = session.user.user_metadata?.is_client;
@@ -76,24 +99,40 @@ export default function ClientLogin() {
           navigate("/client-portal");
         }
       }
-      
+
       setInitializing(false);
     });
 
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    (async () => {
+      // Some invite/recovery flows use PKCE and redirect with ?code=...
+      const code = getUrlCode();
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          console.warn("exchangeCodeForSession error:", error);
+        } else {
+          // Remove ?code=... from URL (keep hash if present)
+          window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+        }
+      }
+
+      // Initial session check
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!isMounted) return;
-      
+
       setSession(session);
       setUser(session?.user ?? null);
-      
-      // If we detected recovery/invite from hash, stay on reset-password
+
+      // If we detected recovery/invite from URL, stay on reset-password
       if (authFlowRef.current.isRecoveryOrInvite) {
         setViewMode("reset-password");
         setInitializing(false);
         return;
       }
-      
+
       // Only redirect if user is already logged in and NOT in password flow
       if (session?.user) {
         const isClient = session.user.user_metadata?.is_client;
@@ -101,9 +140,9 @@ export default function ClientLogin() {
           navigate("/client-portal");
         }
       }
-      
+
       setInitializing(false);
-    });
+    })();
 
     return () => {
       isMounted = false;
@@ -242,33 +281,50 @@ export default function ClientLogin() {
     setIsLoading(true);
 
     try {
-      // Check if we have a session, if not try to establish one from the URL hash
-      let currentSession = session;
-      
+      // Ensure we have an auth session (some flows provide tokens in #hash, others use ?code=...)
+      let currentSession: Session | null = null;
+
+      const {
+        data: { session: initialSession },
+      } = await supabase.auth.getSession();
+      currentSession = initialSession;
+
+      // PKCE code exchange (if present)
       if (!currentSession) {
-        // Try to get session from hash tokens
-        const hash = window.location.hash;
-        if (hash) {
-          const hashParams = new URLSearchParams(hash.substring(1));
-          const accessToken = hashParams.get("access_token");
-          const refreshToken = hashParams.get("refresh_token");
-          
-          if (accessToken && refreshToken) {
-            const { data, error: sessionError } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
-            
-            if (sessionError) {
-              console.error("Session error:", sessionError);
-              throw new Error("Link scaduto o non valido. Richiedi un nuovo invito.");
-            }
-            
-            currentSession = data.session;
+        const code = getUrlCode();
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) {
+            console.warn("exchangeCodeForSession error:", exchangeError);
+          } else {
+            window.history.replaceState(null, "", window.location.pathname + window.location.hash);
           }
+
+          const {
+            data: { session: sessionAfterExchange },
+          } = await supabase.auth.getSession();
+          currentSession = sessionAfterExchange;
         }
       }
-      
+
+      // Hash token session (legacy / implicit flow)
+      if (!currentSession) {
+        const { access_token, refresh_token } = getUrlTokens();
+        if (access_token && refresh_token) {
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token,
+            refresh_token,
+          });
+
+          if (sessionError) {
+            console.error("Session error:", sessionError);
+            throw new Error("Link scaduto o non valido. Richiedi un nuovo invito.");
+          }
+
+          currentSession = data.session;
+        }
+      }
+
       if (!currentSession) {
         throw new Error("Sessione non trovata. Richiedi un nuovo invito.");
       }
