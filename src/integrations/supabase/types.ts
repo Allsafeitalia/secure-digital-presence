@@ -228,6 +228,75 @@ export type Database = {
         }
         Relationships: []
       }
+      maintenance_requests: {
+        Row: {
+          assigned_to: string | null
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          id: string
+          priority: string
+          request_type: string
+          resolution_notes: string | null
+          scheduled_date: string | null
+          service_id: string
+          status: string
+          title: string
+          updated_at: string
+          what_was_done: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority?: string
+          request_type?: string
+          resolution_notes?: string | null
+          scheduled_date?: string | null
+          service_id: string
+          status?: string
+          title: string
+          updated_at?: string
+          what_was_done?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          priority?: string
+          request_type?: string
+          resolution_notes?: string | null
+          scheduled_date?: string | null
+          service_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          what_was_done?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_requests_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "client_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_cancellation_requests: {
         Row: {
           admin_notes: string | null
