@@ -5,6 +5,7 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 interface CreateClientAccountRequest {
@@ -35,6 +36,35 @@ async function getEmailSettings(supabaseAdmin: any): Promise<{ from: string; sit
   };
 }
 
+async function verifyAdminUser(supabaseAdmin: any, authHeader: string | null): Promise<boolean> {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return false;
+  }
+  const token = authHeader.replace("Bearer ", "");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+  // Create a client with the user's token to get their identity
+  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data: { user }, error } = await userClient.auth.getUser();
+  if (error || !user) {
+    console.warn("verifyAdminUser: getUser failed", error);
+    return false;
+  }
+
+  // Check admin role using service client
+  const { data: isAdmin } = await supabaseAdmin.rpc("has_role", {
+    _user_id: user.id,
+    _role: "admin",
+  });
+
+  return isAdmin === true;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("create-client-account function called");
 
@@ -52,6 +82,17 @@ const handler = async (req: Request): Promise<Response> => {
         persistSession: false,
       },
     });
+
+    // Verify the caller is an admin
+    const authHeader = req.headers.get("authorization");
+    const isAdmin = await verifyAdminUser(supabaseAdmin, authHeader);
+    if (!isAdmin) {
+      console.warn("Unauthorized: caller is not admin");
+      return new Response(JSON.stringify({ error: "Non autorizzato" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { clientId, email, name }: CreateClientAccountRequest = await req.json();
     console.log(`Creating account for client: ${name} (${email})`);
