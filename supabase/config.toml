@@ -1,13 +1,13 @@
 project_id = "kthxektvgaidqjetjsur"
 
 [functions.create-client-account]
-verify_jwt = true
+verify_jwt = false
 
 [functions.monitor-services]
 verify_jwt = false
 
 [functions.resend-credentials]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ping]
 verify_jwt = false

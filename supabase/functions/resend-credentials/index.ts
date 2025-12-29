@@ -36,6 +36,35 @@ async function getEmailSettings(supabaseAdmin: any): Promise<{ from: string; sit
   };
 }
 
+async function verifyAdminUser(supabaseAdmin: any, authHeader: string | null): Promise<boolean> {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return false;
+  }
+  const token = authHeader.replace("Bearer ", "");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+  // Create a client with the user's token to get their identity
+  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data: { user }, error } = await userClient.auth.getUser();
+  if (error || !user) {
+    console.warn("verifyAdminUser: getUser failed", error);
+    return false;
+  }
+
+  // Check admin role using service client
+  const { data: isAdmin } = await supabaseAdmin.rpc("has_role", {
+    _user_id: user.id,
+    _role: "admin",
+  });
+
+  return isAdmin === true;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -47,18 +76,29 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const resendKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendKey) {
-      throw new Error("Email provider non configurato (RESEND_API_KEY mancante)");
-    }
-    const resend = new Resend(resendKey);
-
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
       },
     });
+
+    // Verify the caller is an admin
+    const authHeader = req.headers.get("authorization");
+    const isAdmin = await verifyAdminUser(supabaseAdmin, authHeader);
+    if (!isAdmin) {
+      console.warn("Unauthorized: caller is not admin");
+      return new Response(JSON.stringify({ error: "Non autorizzato" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const resendKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendKey) {
+      throw new Error("Email provider non configurato (RESEND_API_KEY mancante)");
+    }
+    const resend = new Resend(resendKey);
 
     const { clientId, email, name }: ResendCredentialsRequest = await req.json();
     console.log("Processing resend for", { clientId, email, name });
@@ -67,10 +107,13 @@ const handler = async (req: Request): Promise<Response> => {
       .from("clients")
       .select("client_user_id")
       .eq("id", clientId)
-      .single();
+      .maybeSingle();
 
     if (clientError) {
-      console.error("Client not found:", clientError);
+      console.error("Client query error:", clientError);
+      throw new Error("Errore nella ricerca del cliente.");
+    }
+    if (!clientData) {
       throw new Error("Cliente non trovato.");
     }
 
