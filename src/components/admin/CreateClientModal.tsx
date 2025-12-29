@@ -89,6 +89,11 @@ export const CreateClientModal = ({
         throw new Error("Sessione scaduta. Effettua nuovamente l'accesso e riprova.");
       }
 
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        console.warn("Unable to refresh session before invoking function:", refreshError);
+      }
+
       const { data: accountData, error: accountError } = await supabase.functions.invoke(
         "create-client-account",
         {

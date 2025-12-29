@@ -15,6 +15,8 @@ interface EmailSetting {
 }
 
 export function EmailSettings() {
+  const sb = supabase as any;
+
   const [settings, setSettings] = useState<EmailSetting[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -26,7 +28,7 @@ export function EmailSettings() {
 
   const fetchSettings = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await sb
         .from("email_settings")
         .select("*")
         .order("setting_key");
@@ -41,7 +43,8 @@ export function EmailSettings() {
       setFormValues(values);
     } catch (error: any) {
       console.error("Error fetching email settings:", error);
-      toast.error("Errore nel caricamento delle impostazioni");
+      const msg = String(error?.message ?? "");
+      toast.error(/jwt/i.test(msg) ? "Accesso richiesto: effettua il login admin" : "Errore nel caricamento delle impostazioni");
     } finally {
       setLoading(false);
     }
@@ -53,7 +56,7 @@ export function EmailSettings() {
       for (const setting of settings) {
         const newValue = formValues[setting.setting_key];
         if (newValue !== setting.setting_value) {
-          const { error } = await supabase
+          const { error } = await sb
             .from("email_settings")
             .update({ setting_value: newValue })
             .eq("id", setting.id);
@@ -66,7 +69,8 @@ export function EmailSettings() {
       fetchSettings();
     } catch (error: any) {
       console.error("Error saving email settings:", error);
-      toast.error("Errore nel salvataggio delle impostazioni");
+      const msg = String(error?.message ?? "");
+      toast.error(/jwt/i.test(msg) ? "Accesso richiesto: effettua il login admin" : "Errore nel salvataggio delle impostazioni");
     } finally {
       setSaving(false);
     }

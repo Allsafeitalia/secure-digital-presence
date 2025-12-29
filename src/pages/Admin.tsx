@@ -378,7 +378,7 @@ const Admin = () => {
 
       <div className="flex flex-col md:flex-row h-[calc(100vh-57px)] md:h-[calc(100vh-73px)]">
         {/* Sidebar - Hidden on mobile when item selected */}
-        <aside className={`${(selectedTicket || selectedClient || viewMode === "settings") ? 'hidden md:hidden' : 'flex'} ${viewMode === "settings" ? 'hidden' : ''} w-full md:w-80 bg-card md:border-r border-border flex-col h-full md:h-auto md:flex`}>
+        <aside className={`${viewMode === "settings" ? "hidden" : (selectedTicket || selectedClient) ? "hidden md:flex" : "flex"} w-full md:w-80 bg-card md:border-r border-border flex-col h-full md:h-auto`}>
           {viewMode === "tickets" ? (
             <>
               {/* Stats */}
