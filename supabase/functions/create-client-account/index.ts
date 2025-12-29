@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { Resend } from "npm:resend@4.0.0";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,25 +64,28 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     let linkData = inviteRes.data;
-    if (inviteRes.error || !inviteRes.data?.properties?.action_link) {
-      console.warn("Invite link failed, falling back to recovery:", inviteRes.error);
+    let linkError = inviteRes.error;
+
+    if (linkError || !linkData?.properties?.action_link) {
+      console.warn("Invite link failed, falling back to recovery:", linkError);
       linkType = "recovery";
       const recoveryRes = await supabaseAdmin.auth.admin.generateLink({
         type: "recovery",
         email,
         options: { redirectTo },
       });
-      if (recoveryRes.error || !recoveryRes.data?.properties?.action_link) {
-        console.error("Error generating recovery link:", recoveryRes.error);
+      linkError = recoveryRes.error;
+      linkData = recoveryRes.data;
+      if (linkError || !linkData?.properties?.action_link) {
+        console.error("Error generating recovery link:", linkError);
         throw new Error(
-          `Impossibile generare il link: ${recoveryRes.error?.message || "errore sconosciuto"}`
+          `Impossibile generare il link: ${linkError?.message || "errore sconosciuto"}`
         );
       }
-      linkData = recoveryRes.data;
     }
 
-    const userId = linkData!.user.id;
-    const actionLink = linkData!.properties.action_link;
+    const userId = linkData.user.id;
+    const actionLink = linkData.properties.action_link;
 
     const subject = linkType === "invite" ? "Imposta la tua password" : "Reimposta la tua password";
     const cta = linkType === "invite" ? "Imposta password" : "Reimposta password";
@@ -130,7 +133,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         success: true,
-        userId: authData.user.id,
+        userId,
         message: "Invito inviato con successo",
       }),
       {
