@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,22 @@ import type { User, Session } from "@supabase/supabase-js";
 
 type ViewMode = "login" | "forgot-password" | "reset-password";
 
+function detectAuthFlowFromHash(): { isRecoveryOrInvite: boolean; type: string | null } {
+  const hash = window.location.hash;
+  if (!hash) return { isRecoveryOrInvite: false, type: null };
+  
+  const hashParams = new URLSearchParams(hash.substring(1));
+  const type = hashParams.get("type");
+  const accessToken = hashParams.get("access_token");
+  
+  if ((type === "recovery" || type === "invite" || type === "magiclink") && accessToken) {
+    return { isRecoveryOrInvite: true, type };
+  }
+  return { isRecoveryOrInvite: false, type: null };
+}
+
 export default function ClientLogin() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   
   const [email, setEmail] = useState("");
@@ -23,52 +36,80 @@ export default function ClientLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("login");
+  const [initializing, setInitializing] = useState(true);
+  
+  // Detect auth flow from URL hash IMMEDIATELY (before any async code)
+  const authFlowRef = useRef(detectAuthFlowFromHash());
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    authFlowRef.current.isRecoveryOrInvite ? "reset-password" : "login"
+  );
 
   useEffect(() => {
-    // Check if this is a password recovery or invite flow
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const type = hashParams.get("type");
-    const accessToken = hashParams.get("access_token");
+    let isMounted = true;
     
-    if ((type === "recovery" || type === "invite") && accessToken) {
-      setViewMode("reset-password");
-    }
-  }, []);
-
-  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+      
+      console.log("Auth state change:", event, session?.user?.email);
+      
       setSession(session);
       setUser(session?.user ?? null);
       
+      // Handle PASSWORD_RECOVERY event from Supabase
       if (event === "PASSWORD_RECOVERY") {
         setViewMode("reset-password");
+        setInitializing(false);
         return;
       }
       
-      if (session?.user && viewMode !== "reset-password") {
-        // Check if this is a client user
+      // If we detected recovery/invite from hash, stay on reset-password
+      if (authFlowRef.current.isRecoveryOrInvite) {
+        setViewMode("reset-password");
+        setInitializing(false);
+        return;
+      }
+      
+      // Only redirect to portal if user is logged in AND we're not in a password flow
+      if (session?.user && event === "SIGNED_IN") {
         const isClient = session.user.user_metadata?.is_client;
         if (isClient) {
           navigate("/client-portal");
         }
       }
+      
+      setInitializing(false);
     });
 
+    // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return;
+      
       setSession(session);
       setUser(session?.user ?? null);
       
-      if (session?.user && viewMode !== "reset-password") {
+      // If we detected recovery/invite from hash, stay on reset-password
+      if (authFlowRef.current.isRecoveryOrInvite) {
+        setViewMode("reset-password");
+        setInitializing(false);
+        return;
+      }
+      
+      // Only redirect if user is already logged in and NOT in password flow
+      if (session?.user) {
         const isClient = session.user.user_metadata?.is_client;
         if (isClient) {
           navigate("/client-portal");
         }
       }
+      
+      setInitializing(false);
     });
 
-    return () => subscription.unsubscribe();
-  }, [navigate, viewMode]);
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,8 +253,9 @@ export default function ClientLogin() {
         description: "La tua password è stata impostata con successo. Ora puoi accedere.",
       });
       
-      // Clear the hash from URL
+      // Clear the hash from URL and reset auth flow detection
       window.history.replaceState(null, "", window.location.pathname);
+      authFlowRef.current = { isRecoveryOrInvite: false, type: null };
       
       setViewMode("login");
       setPassword("");
@@ -229,6 +271,15 @@ export default function ClientLogin() {
       setIsLoading(false);
     }
   };
+
+  // Show loading state while initializing
+  if (initializing) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const renderLoginForm = () => (
     <>
