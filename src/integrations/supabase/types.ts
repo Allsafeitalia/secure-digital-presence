@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       client_services: {
         Row: {
+          auto_renew: boolean
           billing_cycle: Database["public"]["Enums"]["billing_cycle"]
           client_id: string
           created_at: string
@@ -37,6 +38,7 @@ export type Database = {
           url_to_monitor: string | null
         }
         Insert: {
+          auto_renew?: boolean
           billing_cycle?: Database["public"]["Enums"]["billing_cycle"]
           client_id: string
           created_at?: string
@@ -58,6 +60,7 @@ export type Database = {
           url_to_monitor?: string | null
         }
         Update: {
+          auto_renew?: boolean
           billing_cycle?: Database["public"]["Enums"]["billing_cycle"]
           client_id?: string
           created_at?: string
@@ -224,6 +227,57 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      service_cancellation_requests: {
+        Row: {
+          admin_notes: string | null
+          client_id: string
+          created_at: string
+          id: string
+          processed_at: string | null
+          processed_by: string | null
+          reason: string
+          service_id: string
+          status: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          client_id: string
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          reason: string
+          service_id: string
+          status?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          client_id?: string
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          reason?: string
+          service_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_cancellation_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_cancellation_requests_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "client_services"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_monitoring_logs: {
         Row: {

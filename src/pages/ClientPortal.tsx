@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,17 +36,23 @@ import {
   Activity,
   Wifi,
   WifiOff,
+  Euro,
+  Calendar,
+  AlertTriangle,
+  Power,
 } from "lucide-react";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
 type ServiceType = "website" | "domain" | "hosting" | "backup" | "email" | "ssl" | "maintenance" | "other";
 type ServiceStatus = "active" | "expiring_soon" | "expired" | "suspended" | "cancelled";
+type BillingCycle = "monthly" | "quarterly" | "biannual" | "yearly" | "one_time";
 
 interface ClientService {
   id: string;
   service_name: string;
   service_type: ServiceType;
   status: ServiceStatus;
+  billing_cycle: BillingCycle;
   description: string | null;
   domain_name: string | null;
   server_name: string | null;
@@ -54,6 +62,16 @@ interface ClientService {
   last_check_at: string | null;
   last_response_time_ms: number | null;
   last_error: string | null;
+  price: number | null;
+  auto_renew: boolean;
+}
+
+interface CancellationRequest {
+  id: string;
+  service_id: string;
+  status: string;
+  reason: string;
+  created_at: string;
 }
 
 interface ClientData {
@@ -82,6 +100,14 @@ const statusConfig: Record<ServiceStatus, { label: string; variant: "default" | 
   cancelled: { label: "Cancellato", variant: "outline" },
 };
 
+const billingCycleLabels: Record<BillingCycle, string> = {
+  monthly: "Mensile",
+  quarterly: "Trimestrale",
+  biannual: "Semestrale",
+  yearly: "Annuale",
+  one_time: "Una tantum",
+};
+
 export default function ClientPortal() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -89,11 +115,18 @@ export default function ClientPortal() {
   const [session, setSession] = useState<Session | null>(null);
   const [clientData, setClientData] = useState<ClientData | null>(null);
   const [services, setServices] = useState<ClientService[]>([]);
+  const [cancellationRequests, setCancellationRequests] = useState<CancellationRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ current: "", new: "", confirm: "" });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  
+  // Cancellation modal state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [selectedService, setSelectedService] = useState<ClientService | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -157,6 +190,18 @@ export default function ClientPortal() {
       if (servicesError) throw servicesError;
 
       setServices(servicesData || []);
+
+      // Fetch cancellation requests
+      const { data: cancelRequests, error: cancelError } = await supabase
+        .from("service_cancellation_requests")
+        .select("*")
+        .eq("client_id", client.id);
+
+      if (cancelError) {
+        console.error("Error fetching cancellation requests:", cancelError);
+      } else {
+        setCancellationRequests(cancelRequests || []);
+      }
     } catch (error) {
       console.error("Error fetching client data:", error);
       toast({
@@ -229,6 +274,75 @@ export default function ClientPortal() {
     }
   };
 
+  const openCancelModal = (service: ClientService) => {
+    setSelectedService(service);
+    setCancelReason("");
+    setShowCancelModal(true);
+  };
+
+  const handleSubmitCancellation = async () => {
+    if (!selectedService || !clientData) return;
+
+    if (!cancelReason.trim()) {
+      toast({
+        title: "Errore",
+        description: "La motivazione è obbligatoria",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (cancelReason.trim().length < 10) {
+      toast({
+        title: "Errore",
+        description: "La motivazione deve essere di almeno 10 caratteri",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmittingCancel(true);
+
+    try {
+      const { error } = await supabase
+        .from("service_cancellation_requests")
+        .insert({
+          service_id: selectedService.id,
+          client_id: clientData.id,
+          reason: cancelReason.trim(),
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Richiesta inviata",
+        description: "La tua richiesta di disattivazione è stata inviata e verrà elaborata a breve",
+      });
+
+      setShowCancelModal(false);
+      setSelectedService(null);
+      setCancelReason("");
+      
+      // Refresh data
+      fetchClientData();
+    } catch (error: any) {
+      console.error("Error submitting cancellation:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile inviare la richiesta",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingCancel(false);
+    }
+  };
+
+  const hasPendingCancellation = (serviceId: string) => {
+    return cancellationRequests.some(
+      (req) => req.service_id === serviceId && req.status === "pending"
+    );
+  };
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "N/D";
     return new Date(dateString).toLocaleDateString("it-IT", {
@@ -252,9 +366,83 @@ export default function ClientPortal() {
     return formatDate(dateString);
   };
 
-  const activeServices = services.filter(s => s.status === "active");
+  const formatPrice = (price: number | null) => {
+    if (price === null || price === undefined) return "N/D";
+    return new Intl.NumberFormat("it-IT", {
+      style: "currency",
+      currency: "EUR",
+    }).format(price);
+  };
+
+  const calculateNextRenewal = (service: ClientService) => {
+    if (!service.expiration_date) return null;
+    const expDate = new Date(service.expiration_date);
+    const now = new Date();
+    
+    if (expDate <= now) return "Scaduto";
+    
+    const diffMs = expDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays <= 7) return `Fra ${diffDays} giorni`;
+    if (diffDays <= 30) return `Fra ${Math.ceil(diffDays / 7)} settimane`;
+    if (diffDays <= 90) return `Fra ${Math.ceil(diffDays / 30)} mesi`;
+    
+    return formatDate(service.expiration_date);
+  };
+
+  const activeServices = services.filter(s => s.status === "active" || s.status === "expiring_soon");
   const onlineServices = services.filter(s => s.is_online === true);
   const offlineServices = services.filter(s => s.is_online === false && s.url_to_monitor);
+
+  // Calculate total cost
+  const totalMonthlyCost = services
+    .filter(s => s.status === "active" || s.status === "expiring_soon")
+    .reduce((total, service) => {
+      if (!service.price) return total;
+      
+      // Convert to monthly cost for comparison
+      switch (service.billing_cycle) {
+        case "monthly":
+          return total + service.price;
+        case "quarterly":
+          return total + (service.price / 3);
+        case "biannual":
+          return total + (service.price / 6);
+        case "yearly":
+          return total + (service.price / 12);
+        case "one_time":
+          return total; // Don't include one-time costs in monthly
+        default:
+          return total;
+      }
+    }, 0);
+
+  const totalYearlyCost = services
+    .filter(s => s.status === "active" || s.status === "expiring_soon")
+    .reduce((total, service) => {
+      if (!service.price) return total;
+      
+      switch (service.billing_cycle) {
+        case "monthly":
+          return total + (service.price * 12);
+        case "quarterly":
+          return total + (service.price * 4);
+        case "biannual":
+          return total + (service.price * 2);
+        case "yearly":
+          return total + service.price;
+        case "one_time":
+          return total;
+        default:
+          return total;
+      }
+    }, 0);
+
+  // Find next renewal
+  const nextRenewalService = services
+    .filter(s => s.expiration_date && (s.status === "active" || s.status === "expiring_soon"))
+    .sort((a, b) => new Date(a.expiration_date!).getTime() - new Date(b.expiration_date!).getTime())[0];
 
   if (isLoading) {
     return (
@@ -304,26 +492,12 @@ export default function ClientPortal() {
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
         {/* Stats */}
-        <div className="grid md:grid-cols-4 gap-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-full bg-primary/10">
                   <Package className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{services.length}</p>
-                  <p className="text-sm text-muted-foreground">Servizi Totali</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-green-500/10">
-                  <CheckCircle2 className="w-6 h-6 text-green-500" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{activeServices.length}</p>
@@ -336,12 +510,59 @@ export default function ClientPortal() {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-green-500/10">
+                  <Euro className="w-6 h-6 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{formatPrice(totalYearlyCost)}</p>
+                  <p className="text-sm text-muted-foreground">Costo Annuale</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
                 <div className="p-3 rounded-full bg-blue-500/10">
-                  <Wifi className="w-6 h-6 text-blue-500" />
+                  <Euro className="w-6 h-6 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{formatPrice(totalMonthlyCost)}</p>
+                  <p className="text-sm text-muted-foreground">Costo Mensile</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-orange-500/10">
+                  <Calendar className="w-6 h-6 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold">
+                    {nextRenewalService ? calculateNextRenewal(nextRenewalService) : "N/D"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Prossimo Rinnovo</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Online/Offline Status */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-green-500/10">
+                  <Wifi className="w-6 h-6 text-green-500" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{onlineServices.length}</p>
-                  <p className="text-sm text-muted-foreground">Online</p>
+                  <p className="text-sm text-muted-foreground">Servizi Online</p>
                 </div>
               </div>
             </CardContent>
@@ -355,7 +576,7 @@ export default function ClientPortal() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{offlineServices.length}</p>
-                  <p className="text-sm text-muted-foreground">Offline</p>
+                  <p className="text-sm text-muted-foreground">Servizi Offline</p>
                 </div>
               </div>
             </CardContent>
@@ -379,6 +600,7 @@ export default function ClientPortal() {
                 const config = serviceTypeConfig[service.service_type];
                 const Icon = config.icon;
                 const statusConf = statusConfig[service.status];
+                const pendingCancellation = hasPendingCancellation(service.id);
 
                 return (
                   <Card key={service.id} className="relative overflow-hidden">
@@ -404,6 +626,17 @@ export default function ClientPortal() {
                         <p className="text-sm text-muted-foreground">{service.description}</p>
                       )}
 
+                      {/* Price and billing */}
+                      <div className="flex items-center justify-between text-sm bg-muted/50 rounded-lg p-2">
+                        <div className="flex items-center gap-2">
+                          <Euro className="w-4 h-4 text-green-600" />
+                          <span className="font-medium">{formatPrice(service.price)}</span>
+                        </div>
+                        <span className="text-muted-foreground">
+                          {billingCycleLabels[service.billing_cycle]}
+                        </span>
+                      </div>
+
                       {service.domain_name && (
                         <div className="flex items-center gap-2 text-sm">
                           <Globe className="w-4 h-4 text-muted-foreground" />
@@ -419,9 +652,24 @@ export default function ClientPortal() {
                       )}
 
                       {service.expiration_date && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Clock className="w-4 h-4 text-muted-foreground" />
-                          <span>Scade il {formatDate(service.expiration_date)}</span>
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-muted-foreground" />
+                            <span>Scade il {formatDate(service.expiration_date)}</span>
+                          </div>
+                          {service.auto_renew && (
+                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                              Rinnovo auto
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Next renewal info */}
+                      {service.expiration_date && (
+                        <div className="flex items-center gap-2 text-sm text-orange-600">
+                          <Calendar className="w-4 h-4" />
+                          <span>Prossimo rinnovo: {calculateNextRenewal(service)}</span>
                         </div>
                       )}
 
@@ -460,6 +708,26 @@ export default function ClientPortal() {
                           )}
                         </div>
                       )}
+
+                      {/* Cancellation section */}
+                      <div className="pt-3 border-t">
+                        {pendingCancellation ? (
+                          <div className="flex items-center gap-2 text-amber-600 text-sm">
+                            <AlertTriangle className="w-4 h-4" />
+                            <span>Richiesta di disattivazione in attesa</span>
+                          </div>
+                        ) : service.status === "active" || service.status === "expiring_soon" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                            onClick={() => openCancelModal(service)}
+                          >
+                            <Power className="w-4 h-4 mr-2" />
+                            Richiedi Disattivazione
+                          </Button>
+                        ) : null}
+                      </div>
                     </CardContent>
                   </Card>
                 );
@@ -510,6 +778,58 @@ export default function ClientPortal() {
               {isChangingPassword ? "Salvataggio..." : "Salva Password"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancellation Request Modal */}
+      <Dialog open={showCancelModal} onOpenChange={setShowCancelModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              Richiesta Disattivazione
+            </DialogTitle>
+            <DialogDescription>
+              Stai richiedendo la disattivazione del servizio "{selectedService?.service_name}".
+              Questa richiesta sarà esaminata dal nostro team.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+              <p className="font-medium mb-1">Nota:</p>
+              <p>I servizi sono impostati per il rinnovo automatico. Una volta elaborata la tua richiesta, il servizio non verrà rinnovato alla prossima scadenza.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cancel-reason">
+                Motivazione <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="cancel-reason"
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Inserisci il motivo della disattivazione (minimo 10 caratteri)"
+                rows={4}
+              />
+              <p className="text-xs text-muted-foreground">
+                La motivazione è obbligatoria e ci aiuta a migliorare i nostri servizi.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCancelModal(false)}>
+              Annulla
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleSubmitCancellation}
+              disabled={isSubmittingCancel || !cancelReason.trim()}
+            >
+              {isSubmittingCancel ? "Invio in corso..." : "Invia Richiesta"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
