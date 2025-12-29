@@ -290,6 +290,11 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
         throw new Error("Sessione scaduta. Effettua nuovamente l'accesso e riprova.");
       }
 
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        console.warn("Unable to refresh session before invoking function:", refreshError);
+      }
+
       const { data, error } = await supabase.functions.invoke("resend-credentials", {
         body: {
           clientId: client.id,
