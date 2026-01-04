@@ -41,6 +41,7 @@ import {
   AlertTriangle,
   Power,
 } from "lucide-react";
+import { MaintenanceHistory } from "@/components/client/MaintenanceHistory";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
 type ServiceType = "website" | "domain" | "hosting" | "backup" | "email" | "ssl" | "maintenance" | "other";
@@ -735,6 +736,11 @@ export default function ClientPortal() {
             </div>
           )}
         </div>
+
+        {/* Maintenance History Section */}
+        {clientData && (
+          <MaintenanceHistory clientId={clientData.id} />
+        )}
       </main>
 
       {/* Change Password Modal */}
