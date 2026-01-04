@@ -53,8 +53,13 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   open: { label: "Aperto", variant: "secondary", icon: Clock },
   in_progress: { label: "In corso", variant: "default", icon: Wrench },
   completed: { label: "Completato", variant: "outline", icon: CheckCircle2 },
+  resolved: { label: "Risolto", variant: "outline", icon: CheckCircle2 },
+  closed: { label: "Chiuso", variant: "outline", icon: CheckCircle2 },
   cancelled: { label: "Annullato", variant: "destructive", icon: AlertCircle },
 };
+
+// Stati che indicano che l'intervento è stato completato (per calcolo costi)
+const completedStatuses = ["completed", "resolved", "closed"];
 
 const requestTypeConfig: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   maintenance: { label: "Manutenzione", icon: Wrench, color: "text-blue-600" },
@@ -138,7 +143,7 @@ export function MaintenanceHistory({ clientId }: MaintenanceHistoryProps) {
   };
 
   // Calculate stats
-  const completedRequests = requests.filter(r => r.status === "completed");
+  const completedRequests = requests.filter(r => completedStatuses.includes(r.status));
   const totalSpent = completedRequests.reduce((sum, r) => sum + (r.cost || 0), 0);
   const avgCostPerRequest = completedRequests.length > 0 ? totalSpent / completedRequests.length : 0;
   
@@ -157,7 +162,7 @@ export function MaintenanceHistory({ clientId }: MaintenanceHistoryProps) {
       acc[type] = { count: 0, totalCost: 0 };
     }
     acc[type].count++;
-    if (r.status === "completed" && r.cost) {
+    if (completedStatuses.includes(r.status) && r.cost) {
       acc[type].totalCost += r.cost;
     }
     return acc;
@@ -367,7 +372,7 @@ export function MaintenanceHistory({ clientId }: MaintenanceHistoryProps) {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          {request.status === "completed" ? formatPrice(request.cost) : "-"}
+                          {completedStatuses.includes(request.status) ? formatPrice(request.cost) : "-"}
                         </TableCell>
                       </TableRow>
                     );
@@ -414,7 +419,7 @@ export function MaintenanceHistory({ clientId }: MaintenanceHistoryProps) {
                               {statusConf.label}
                             </Badge>
                           </div>
-                          {request.status === "completed" && (
+                          {completedStatuses.includes(request.status) && (
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-muted-foreground">Costo:</span>
                               <span className="font-medium text-green-600">{formatPrice(request.cost)}</span>
