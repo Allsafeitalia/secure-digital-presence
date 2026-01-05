@@ -11,3 +11,15 @@ verify_jwt = false
 
 [functions.ping]
 verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.check-subscription]
+verify_jwt = false
+
+[functions.customer-portal]
+verify_jwt = false
+
+[functions.create-service-payment]
+verify_jwt = false
