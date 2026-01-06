@@ -29,10 +29,6 @@ export type Database = {
           last_error: string | null
           last_response_time_ms: number | null
           notes: string | null
-          payment_date: string | null
-          payment_method: string | null
-          payment_notes: string | null
-          payment_status: string
           price: number | null
           server_name: string | null
           service_name: string
@@ -55,10 +51,6 @@ export type Database = {
           last_error?: string | null
           last_response_time_ms?: number | null
           notes?: string | null
-          payment_date?: string | null
-          payment_method?: string | null
-          payment_notes?: string | null
-          payment_status?: string
           price?: number | null
           server_name?: string | null
           service_name: string
@@ -81,10 +73,6 @@ export type Database = {
           last_error?: string | null
           last_response_time_ms?: number | null
           notes?: string | null
-          payment_date?: string | null
-          payment_method?: string | null
-          payment_notes?: string | null
-          payment_status?: string
           price?: number | null
           server_name?: string | null
           service_name?: string
@@ -249,10 +237,6 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
-          payment_date: string | null
-          payment_method: string | null
-          payment_notes: string | null
-          payment_status: string
           priority: string
           request_type: string
           resolution_notes: string | null
@@ -271,10 +255,6 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          payment_date?: string | null
-          payment_method?: string | null
-          payment_notes?: string | null
-          payment_status?: string
           priority?: string
           request_type?: string
           resolution_notes?: string | null
@@ -293,10 +273,6 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
-          payment_date?: string | null
-          payment_method?: string | null
-          payment_notes?: string | null
-          payment_status?: string
           priority?: string
           request_type?: string
           resolution_notes?: string | null
