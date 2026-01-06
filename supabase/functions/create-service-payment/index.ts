@@ -40,10 +40,11 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    const { amount, description, serviceId, maintenanceId } = await req.json();
+    const { amount, description, itemId, itemType } = await req.json();
     if (!amount || amount <= 0) throw new Error("Valid amount is required");
     if (!description) throw new Error("Description is required");
-    logStep("Request body parsed", { amount, description, serviceId, maintenanceId });
+    if (!itemId || !itemType) throw new Error("Item ID and type are required");
+    logStep("Request body parsed", { amount, description, itemId, itemType });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
@@ -69,7 +70,7 @@ serve(async (req) => {
             currency: 'eur',
             product_data: {
               name: description,
-              description: maintenanceId ? `ID Intervento: ${maintenanceId}` : (serviceId ? `ID Servizio: ${serviceId}` : undefined),
+              description: itemType === "maintenance" ? `ID Intervento: ${itemId}` : `ID Servizio: ${itemId}`,
             },
             unit_amount: Math.round(amount * 100), // Convert to cents
           },
@@ -77,12 +78,12 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
-      success_url: `${origin}/portale-cliente?payment=success&type=service`,
+      success_url: `${origin}/portale-cliente?payment=success&type=${itemType}&id=${itemId}`,
       cancel_url: `${origin}/portale-cliente?payment=cancelled`,
       billing_address_collection: 'required',
       metadata: {
-        serviceId: serviceId || '',
-        maintenanceId: maintenanceId || '',
+        itemId: itemId,
+        itemType: itemType,
       },
     });
 

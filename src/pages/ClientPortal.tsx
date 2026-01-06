@@ -42,7 +42,7 @@ import {
   Power,
 } from "lucide-react";
 import { MaintenanceHistory } from "@/components/client/MaintenanceHistory";
-import { SubscriptionPlans } from "@/components/client/SubscriptionPlans";
+import { PendingPayments } from "@/components/client/PendingPayments";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
 type ServiceType = "website" | "domain" | "hosting" | "backup" | "email" | "ssl" | "maintenance" | "other";
@@ -738,8 +738,10 @@ export default function ClientPortal() {
           )}
         </div>
 
-        {/* Subscription Plans Section */}
-        <SubscriptionPlans />
+        {/* Pending Payments Section */}
+        {clientData && (
+          <PendingPayments clientId={clientData.id} onRefresh={fetchClientData} />
+        )}
 
         {/* Maintenance History Section */}
         {clientData && (
