@@ -29,6 +29,7 @@ export type Database = {
           last_error: string | null
           last_response_time_ms: number | null
           notes: string | null
+          order_number: string | null
           payment_date: string | null
           payment_method: string | null
           payment_notes: string | null
@@ -55,6 +56,7 @@ export type Database = {
           last_error?: string | null
           last_response_time_ms?: number | null
           notes?: string | null
+          order_number?: string | null
           payment_date?: string | null
           payment_method?: string | null
           payment_notes?: string | null
@@ -81,6 +83,7 @@ export type Database = {
           last_error?: string | null
           last_response_time_ms?: number | null
           notes?: string | null
+          order_number?: string | null
           payment_date?: string | null
           payment_method?: string | null
           payment_notes?: string | null
@@ -249,6 +252,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          order_number: string | null
           payment_date: string | null
           payment_method: string | null
           payment_notes: string | null
@@ -271,6 +275,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          order_number?: string | null
           payment_date?: string | null
           payment_method?: string | null
           payment_notes?: string | null
@@ -293,6 +298,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          order_number?: string | null
           payment_date?: string | null
           payment_method?: string | null
           payment_notes?: string | null

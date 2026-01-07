@@ -114,6 +114,8 @@ export const MaintenanceRequests = () => {
     resolution_notes: "",
     what_was_done: "",
     cost: "",
+    payment_status: "pending",
+    payment_method: "",
   });
 
   useEffect(() => {
@@ -218,7 +220,14 @@ export const MaintenanceRequests = () => {
       resolution_notes: formData.resolution_notes || null,
       what_was_done: formData.what_was_done || null,
       cost: formData.cost ? parseFloat(formData.cost) : null,
+      payment_status: formData.payment_status,
+      payment_method: formData.payment_method || null,
     };
+
+    // Set payment date if marked as paid
+    if (formData.payment_status === "paid" && selectedRequest && (selectedRequest as any).payment_status !== "paid") {
+      updateData.payment_date = new Date().toISOString();
+    }
 
     // Se lo stato diventa resolved, closed o not_resolved, imposta completed_at
     if (["resolved", "closed", "not_resolved"].includes(formData.status) && 
@@ -263,6 +272,8 @@ export const MaintenanceRequests = () => {
       resolution_notes: "",
       what_was_done: "",
       cost: "",
+      payment_status: "pending",
+      payment_method: "",
     });
   };
 
@@ -281,6 +292,8 @@ export const MaintenanceRequests = () => {
       resolution_notes: request.resolution_notes || "",
       what_was_done: request.what_was_done || "",
       cost: request.cost !== null ? request.cost.toString() : "",
+      payment_status: (request as any).payment_status || "pending",
+      payment_method: (request as any).payment_method || "",
     });
     setShowEditModal(true);
   };
@@ -309,7 +322,7 @@ export const MaintenanceRequests = () => {
             <Wrench className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h2 className="font-display text-xl font-bold">Manutenzione & Assistenza</h2>
+            <h2 className="font-display text-xl font-bold">Helpdesk</h2>
             <p className="text-sm text-muted-foreground">
               {requests.length} richieste totali
             </p>
