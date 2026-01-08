@@ -31,6 +31,7 @@ import { EmailSettings } from "@/components/admin/EmailSettings";
 import { CancellationRequests } from "@/components/admin/CancellationRequests";
 import { ServiceMonitoring } from "@/components/admin/ServiceMonitoring";
 import { MaintenanceRequests } from "@/components/admin/MaintenanceRequests";
+import { ConvertTicketModal } from "@/components/admin/ConvertTicketModal";
 
 interface ContactTicket {
   id: string;
@@ -75,6 +76,7 @@ const Admin = () => {
   const [filter, setFilter] = useState<"all" | "open" | "closed">("all");
   const [viewMode, setViewMode] = useState<ViewMode>("tickets");
   const [showCreateClient, setShowCreateClient] = useState(false);
+  const [showConvertTicket, setShowConvertTicket] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -680,6 +682,15 @@ const Admin = () => {
                     </Button>
                   )}
                   <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => setShowConvertTicket(true)}
+                    className="bg-orange-600 hover:bg-orange-700 text-xs md:text-sm"
+                  >
+                    <Wrench size={14} className="md:w-4 md:h-4" />
+                    Converti
+                  </Button>
+                  <Button
                     variant={selectedTicket.status === "open" ? "default" : "outline"}
                     size="sm"
                     onClick={() => toggleTicketStatus(selectedTicket)}
@@ -842,6 +853,26 @@ const Admin = () => {
           onSuccess={() => {
             fetchClients();
             setShowCreateClient(false);
+          }}
+        />
+      )}
+
+      {/* Convert Ticket Modal */}
+      {selectedTicket && (
+        <ConvertTicketModal
+          open={showConvertTicket}
+          onOpenChange={setShowConvertTicket}
+          ticketData={{
+            id: selectedTicket.id,
+            name: selectedTicket.name,
+            email: selectedTicket.email,
+            message: selectedTicket.message,
+            subject: selectedTicket.subject,
+          }}
+          onSuccess={() => {
+            fetchTickets();
+            setShowConvertTicket(false);
+            setSelectedTicket(null);
           }}
         />
       )}
