@@ -29,35 +29,30 @@ export const Footer = () => {
 
           {/* Navigation */}
           <nav className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
-            {["Home", "Chi Sono", "Servizi", "Come Lavoro", "Contatti"].map(
-              (item) => (
-                <a
-                  key={item}
-                  href={`#${item.toLowerCase().replace(" ", "-")}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    scrollToSection(
-                      `#${item === "Home" ? "home" : item.toLowerCase().replace(" ", "-")}`
-                    );
-                  }}
-                  className="hover:text-foreground transition-colors"
-                >
-                  {item}
-                </a>
-              )
-            )}
+            {["Home", "Chi Sono", "Servizi", "Come Lavoro", "Contatti"].map((item) => (
+              <a
+                key={item}
+                href={`#${item.toLowerCase().replace(" ", "-")}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  scrollToSection(`#${item === "Home" ? "home" : item.toLowerCase().replace(" ", "-")}`);
+                }}
+                className="hover:text-foreground transition-colors"
+              >
+                {item}
+              </a>
+            ))}
           </nav>
 
           {/* Copyright */}
           <p className="text-sm text-muted-foreground">
             © {currentYear} Made with ❤️ by{" "}
-            <a 
-              href="https://giuseppemastronardi.dev" 
-              target="_blank" 
+            <a
+              href="https://giuseppemastronardi.dev"
+              target="_blank"
               rel="noopener noreferrer"
               className="hover:underline inline-flex items-center gap-1 font-semibold"
             >
-              🎅
               <span className="text-red-500">giuseppe</span>
               <span className="text-white">mastronardi</span>
               <span className="text-red-500">.dev</span>
