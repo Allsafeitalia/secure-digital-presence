@@ -110,6 +110,7 @@ export type Database = {
         Row: {
           address: string | null
           city: string | null
+          client_code: string | null
           client_user_id: string | null
           codice_sdi: string | null
           country: string | null
@@ -131,6 +132,7 @@ export type Database = {
         Insert: {
           address?: string | null
           city?: string | null
+          client_code?: string | null
           client_user_id?: string | null
           codice_sdi?: string | null
           country?: string | null
@@ -152,6 +154,7 @@ export type Database = {
         Update: {
           address?: string | null
           city?: string | null
+          client_code?: string | null
           client_user_id?: string | null
           codice_sdi?: string | null
           country?: string | null
@@ -451,6 +454,16 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      lookup_client_for_ticket: {
+        Args: { p_client_code?: string; p_email?: string; p_phone?: string }
+        Returns: {
+          client_email: string
+          client_id: string
+          client_name: string
+          client_phone: string
+          code: string
+        }[]
       }
     }
     Enums: {
