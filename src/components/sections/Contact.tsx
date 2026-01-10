@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Mail, Send, CheckCircle, MessageCircle } from "lucide-react";
+import { Mail, Send, CheckCircle, MessageCircle, User, Search, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
@@ -15,9 +15,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Validation schema with length limits and format validation
-const contactSchema = z.object({
+// Validation schema for new clients (full form)
+const newClientSchema = z.object({
   name: z.string()
     .trim()
     .min(1, "Il nome è obbligatorio")
@@ -31,6 +32,18 @@ const contactSchema = z.object({
     .regex(/^[\d\s]*$/, "Il numero può contenere solo cifre")
     .optional()
     .or(z.literal("")),
+  subject: z.string()
+    .trim()
+    .min(1, "L'oggetto è obbligatorio")
+    .max(200, "L'oggetto non può superare 200 caratteri"),
+  message: z.string()
+    .trim()
+    .min(1, "Il messaggio è obbligatorio")
+    .max(5000, "Il messaggio non può superare 5000 caratteri"),
+});
+
+// Validation schema for recognized clients (minimal form)
+const recognizedClientSchema = z.object({
   subject: z.string()
     .trim()
     .min(1, "L'oggetto è obbligatorio")
@@ -61,6 +74,14 @@ const countryCodes = [
   { code: "+420", country: "Rep. Ceca", flag: "🇨🇿" },
 ];
 
+interface RecognizedClient {
+  client_id: string;
+  client_name: string;
+  client_email: string;
+  client_phone: string | null;
+  code: string;
+}
+
 export const Contact = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
@@ -75,84 +96,204 @@ export const Contact = () => {
     phone: "",
     subject: "",
     message: "",
-    honeypot: "", // Anti-bot honeypot field
+    honeypot: "",
   });
+
+  // Client recognition state
+  const [clientMode, setClientMode] = useState<"new" | "existing">("new");
+  const [lookupValue, setLookupValue] = useState("");
+  const [lookupType, setLookupType] = useState<"code" | "email" | "phone">("code");
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [recognizedClient, setRecognizedClient] = useState<RecognizedClient | null>(null);
+
+  const handleLookupClient = async () => {
+    if (!lookupValue.trim()) {
+      toast({
+        title: "Errore",
+        description: "Inserisci un valore per la ricerca",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLookingUp(true);
+
+    try {
+      const params: { p_client_code?: string; p_email?: string; p_phone?: string } = {};
+      
+      if (lookupType === "code") {
+        params.p_client_code = lookupValue.trim();
+      } else if (lookupType === "email") {
+        params.p_email = lookupValue.trim();
+      } else {
+        params.p_phone = lookupValue.trim();
+      }
+
+      const { data, error } = await supabase.rpc('lookup_client_for_ticket', params);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setRecognizedClient(data[0] as RecognizedClient);
+        toast({
+          title: "Cliente riconosciuto!",
+          description: `Benvenuto ${data[0].client_name}`,
+        });
+      } else {
+        toast({
+          title: "Cliente non trovato",
+          description: "Nessun cliente corrisponde ai dati inseriti. Compila il form completo.",
+          variant: "destructive",
+        });
+        setClientMode("new");
+      }
+    } catch (error) {
+      console.error("Lookup error:", error);
+      toast({
+        title: "Errore",
+        description: "Errore durante la ricerca. Riprova.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
+
+  const handleClearRecognizedClient = () => {
+    setRecognizedClient(null);
+    setLookupValue("");
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormErrors({});
     
-    // Bot detection: if honeypot field is filled, silently reject
+    // Bot detection
     if (formData.honeypot) {
       setIsSubmitted(true);
       setTimeout(() => {
         setIsSubmitted(false);
-        setFormData({ name: "", email: "", phone: "", subject: "", message: "", honeypot: "" });
-        setCountryCode("+39");
+        resetForm();
       }, 3000);
       return;
     }
 
-    // Validate form data with zod
-    const validationResult = contactSchema.safeParse({
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      subject: formData.subject,
-      message: formData.message,
-    });
-
-    if (!validationResult.success) {
-      const errors: Record<string, string> = {};
-      validationResult.error.errors.forEach((err) => {
-        if (err.path[0]) {
-          errors[err.path[0].toString()] = err.message;
-        }
+    // Validate based on mode
+    if (recognizedClient) {
+      const validationResult = recognizedClientSchema.safeParse({
+        subject: formData.subject,
+        message: formData.message,
       });
-      setFormErrors(errors);
-      toast({
-        title: "Errore di validazione",
-        description: "Controlla i campi evidenziati",
-        variant: "destructive",
+
+      if (!validationResult.success) {
+        const errors: Record<string, string> = {};
+        validationResult.error.errors.forEach((err) => {
+          if (err.path[0]) {
+            errors[err.path[0].toString()] = err.message;
+          }
+        });
+        setFormErrors(errors);
+        toast({
+          title: "Errore di validazione",
+          description: "Controlla i campi evidenziati",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      const { error } = await supabase.from("contact_tickets").insert({
+        name: recognizedClient.client_name,
+        email: recognizedClient.client_email,
+        phone: recognizedClient.client_phone,
+        subject: validationResult.data.subject,
+        message: validationResult.data.message,
       });
-      return;
-    }
 
-    setIsSubmitting(true);
+      setIsSubmitting(false);
 
-    // Combine country code with phone number if phone is provided
-    const fullPhone = formData.phone ? `${countryCode} ${formData.phone}` : null;
-
-    const { error } = await supabase.from("contact_tickets").insert({
-      name: validationResult.data.name,
-      email: validationResult.data.email,
-      phone: fullPhone,
-      subject: validationResult.data.subject,
-      message: validationResult.data.message,
-    });
-
-    setIsSubmitting(false);
-
-    if (error) {
-      toast({
-        title: "Errore",
-        description: "Si è verificato un errore. Riprova più tardi.",
-        variant: "destructive",
-      });
+      if (error) {
+        toast({
+          title: "Errore",
+          description: "Si è verificato un errore. Riprova più tardi.",
+          variant: "destructive",
+        });
+      } else {
+        handleSuccess();
+      }
     } else {
-      setIsSubmitted(true);
-      toast({
-        title: "Messaggio inviato!",
-        description: "Ti risponderò il prima possibile.",
+      // New client validation
+      const validationResult = newClientSchema.safeParse({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        subject: formData.subject,
+        message: formData.message,
       });
 
-      setTimeout(() => {
-        setIsSubmitted(false);
-        setFormData({ name: "", email: "", phone: "", subject: "", message: "", honeypot: "" });
-        setCountryCode("+39");
-        setFormErrors({});
-      }, 3000);
+      if (!validationResult.success) {
+        const errors: Record<string, string> = {};
+        validationResult.error.errors.forEach((err) => {
+          if (err.path[0]) {
+            errors[err.path[0].toString()] = err.message;
+          }
+        });
+        setFormErrors(errors);
+        toast({
+          title: "Errore di validazione",
+          description: "Controlla i campi evidenziati",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      const fullPhone = formData.phone ? `${countryCode} ${formData.phone}` : null;
+
+      const { error } = await supabase.from("contact_tickets").insert({
+        name: validationResult.data.name,
+        email: validationResult.data.email,
+        phone: fullPhone,
+        subject: validationResult.data.subject,
+        message: validationResult.data.message,
+      });
+
+      setIsSubmitting(false);
+
+      if (error) {
+        toast({
+          title: "Errore",
+          description: "Si è verificato un errore. Riprova più tardi.",
+          variant: "destructive",
+        });
+      } else {
+        handleSuccess();
+      }
     }
+  };
+
+  const handleSuccess = () => {
+    setIsSubmitted(true);
+    toast({
+      title: "Messaggio inviato!",
+      description: "Ti risponderò il prima possibile.",
+    });
+
+    setTimeout(() => {
+      setIsSubmitted(false);
+      resetForm();
+    }, 3000);
+  };
+
+  const resetForm = () => {
+    setFormData({ name: "", email: "", phone: "", subject: "", message: "", honeypot: "" });
+    setCountryCode("+39");
+    setFormErrors({});
+    setRecognizedClient(null);
+    setLookupValue("");
+    setClientMode("new");
   };
 
   const contactInfo = [
@@ -242,8 +383,93 @@ export const Contact = () => {
               </p>
             </div>
 
+            {/* Client Recognition Tabs */}
+            <Tabs value={clientMode} onValueChange={(v) => setClientMode(v as "new" | "existing")} className="mb-6">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="new" className="flex items-center gap-2">
+                  <User size={16} />
+                  Nuovo contatto
+                </TabsTrigger>
+                <TabsTrigger value="existing" className="flex items-center gap-2">
+                  <Search size={16} />
+                  Sono già cliente
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="existing" className="mt-4">
+                {!recognizedClient ? (
+                  <div className="space-y-4 p-4 bg-secondary/30 rounded-xl">
+                    <p className="text-sm text-muted-foreground">
+                      Inserisci il tuo codice cliente, email o numero di telefono per saltare i campi anagrafici.
+                    </p>
+                    <div className="flex gap-2">
+                      <Select value={lookupType} onValueChange={(v) => setLookupType(v as "code" | "email" | "phone")}>
+                        <SelectTrigger className="w-[140px] bg-background">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card border-border z-50">
+                          <SelectItem value="code">Codice</SelectItem>
+                          <SelectItem value="email">Email</SelectItem>
+                          <SelectItem value="phone">Telefono</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        placeholder={
+                          lookupType === "code" ? "CLI00001" :
+                          lookupType === "email" ? "tua@email.it" :
+                          "328 123 4567"
+                        }
+                        value={lookupValue}
+                        onChange={(e) => setLookupValue(e.target.value)}
+                        className="flex-1 bg-background"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleLookupClient();
+                          }
+                        }}
+                      />
+                      <Button 
+                        type="button" 
+                        onClick={handleLookupClient}
+                        disabled={isLookingUp}
+                      >
+                        {isLookingUp ? (
+                          <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                        ) : (
+                          <Search size={16} />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                          <User size={20} className="text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{recognizedClient.client_name}</p>
+                          <p className="text-sm text-muted-foreground">{recognizedClient.client_email}</p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleClearRecognizedClient}
+                      >
+                        <X size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Honeypot field - hidden from users, visible to bots */}
+              {/* Honeypot field */}
               <div className="absolute -left-[9999px]" aria-hidden="true">
                 <label htmlFor="website">Website</label>
                 <input
@@ -259,92 +485,97 @@ export const Contact = () => {
                 />
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-medium mb-2"
-                  >
-                    Nome
-                  </label>
-                  <Input
-                    id="name"
-                    name="name"
-                    type="text"
-                    required
-                    maxLength={100}
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    placeholder="Il tuo nome"
-                    className={`bg-secondary/50 border-border focus:border-primary ${formErrors.name ? 'border-destructive' : ''}`}
-                  />
-                  {formErrors.name && (
-                    <p className="text-destructive text-xs mt-1">{formErrors.name}</p>
-                  )}
-                </div>
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium mb-2"
-                  >
-                    Email
-                  </label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    maxLength={255}
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                    placeholder="tua@email.it"
-                    className={`bg-secondary/50 border-border focus:border-primary ${formErrors.email ? 'border-destructive' : ''}`}
-                  />
-                  {formErrors.email && (
-                    <p className="text-destructive text-xs mt-1">{formErrors.email}</p>
-                  )}
-                </div>
-                <div className="md:col-span-2">
-                  <label
-                    htmlFor="phone"
-                    className="block text-sm font-medium mb-2"
-                  >
-                    WhatsApp (opzionale)
-                  </label>
-                  <div className="flex gap-2">
-                    <Select value={countryCode} onValueChange={setCountryCode}>
-                      <SelectTrigger className="w-[140px] bg-secondary/50 border-border">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-card border-border z-50">
-                        {countryCodes.map((country) => (
-                          <SelectItem key={country.code} value={country.code}>
-                            <span className="flex items-center gap-2">
-                              <span>{country.flag}</span>
-                              <span>{country.code}</span>
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      id="phone"
-                      name="phone"
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) =>
-                        setFormData({ ...formData, phone: e.target.value.replace(/[^\d\s]/g, '') })
-                      }
-                      placeholder="328 123 4567"
-                      className="flex-1 bg-secondary/50 border-border focus:border-primary"
-                    />
+              {/* Show full form only for new clients or if no client is recognized */}
+              {clientMode === "new" || !recognizedClient ? (
+                <>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <label
+                        htmlFor="name"
+                        className="block text-sm font-medium mb-2"
+                      >
+                        Nome
+                      </label>
+                      <Input
+                        id="name"
+                        name="name"
+                        type="text"
+                        required
+                        maxLength={100}
+                        value={formData.name}
+                        onChange={(e) =>
+                          setFormData({ ...formData, name: e.target.value })
+                        }
+                        placeholder="Il tuo nome"
+                        className={`bg-secondary/50 border-border focus:border-primary ${formErrors.name ? 'border-destructive' : ''}`}
+                      />
+                      {formErrors.name && (
+                        <p className="text-destructive text-xs mt-1">{formErrors.name}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label
+                        htmlFor="email"
+                        className="block text-sm font-medium mb-2"
+                      >
+                        Email
+                      </label>
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        required
+                        maxLength={255}
+                        value={formData.email}
+                        onChange={(e) =>
+                          setFormData({ ...formData, email: e.target.value })
+                        }
+                        placeholder="tua@email.it"
+                        className={`bg-secondary/50 border-border focus:border-primary ${formErrors.email ? 'border-destructive' : ''}`}
+                      />
+                      {formErrors.email && (
+                        <p className="text-destructive text-xs mt-1">{formErrors.email}</p>
+                      )}
+                    </div>
+                    <div className="md:col-span-2">
+                      <label
+                        htmlFor="phone"
+                        className="block text-sm font-medium mb-2"
+                      >
+                        WhatsApp (opzionale)
+                      </label>
+                      <div className="flex gap-2">
+                        <Select value={countryCode} onValueChange={setCountryCode}>
+                          <SelectTrigger className="w-[140px] bg-secondary/50 border-border">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-card border-border z-50">
+                            {countryCodes.map((country) => (
+                              <SelectItem key={country.code} value={country.code}>
+                                <span className="flex items-center gap-2">
+                                  <span>{country.flag}</span>
+                                  <span>{country.code}</span>
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          id="phone"
+                          name="phone"
+                          type="tel"
+                          value={formData.phone}
+                          onChange={(e) =>
+                            setFormData({ ...formData, phone: e.target.value.replace(/[^\d\s]/g, '') })
+                          }
+                          placeholder="328 123 4567"
+                          className="flex-1 bg-secondary/50 border-border focus:border-primary"
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </>
+              ) : null}
 
               <div>
                 <label
@@ -401,7 +632,7 @@ export const Contact = () => {
                 variant="hero"
                 size="lg"
                 className="w-full"
-                disabled={isSubmitting || isSubmitted}
+                disabled={isSubmitting || isSubmitted || (clientMode === "existing" && !recognizedClient)}
               >
                 {isSubmitted ? (
                   <>
