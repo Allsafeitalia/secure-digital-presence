@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Lock, LogIn, ArrowLeft, KeyRound, Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Mail, Lock, LogIn, ArrowLeft, KeyRound, Loader2, User, Phone, Send, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { User, Session } from "@supabase/supabase-js";
+import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
-type ViewMode = "login" | "forgot-password" | "reset-password";
+type ViewMode = "login" | "client-code" | "forgot-password" | "reset-password" | "magic-link-sent";
 
 function detectAuthFlowFromUrl(): { isRecoveryOrInvite: boolean; type: string | null } {
   const hash = window.location.hash ?? "";
@@ -51,13 +52,22 @@ export default function ClientLogin() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Standard login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  
+  // Client code login
+  const [clientCode, setClientCode] = useState("");
+  const [verificationValue, setVerificationValue] = useState("");
+  const [verificationType, setVerificationType] = useState<"email" | "phone">("email");
+  const [verifiedClientEmail, setVerifiedClientEmail] = useState<string | null>(null);
+  
   const [isLoading, setIsLoading] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [initializing, setInitializing] = useState(true);
+  const [loginMethod, setLoginMethod] = useState<"password" | "code">("password");
 
   // Detect auth flow from URL IMMEDIATELY (before any async code)
   const authFlowRef = useRef(detectAuthFlowFromUrl());
@@ -200,6 +210,88 @@ export default function ClientLogin() {
       toast({
         title: "Errore di accesso",
         description: error.message || "Impossibile effettuare l'accesso",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleClientCodeVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!clientCode || !verificationValue) {
+      toast({
+        title: "Errore",
+        description: "Inserisci il codice cliente e l'email o telefono",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Call the lookup function to verify client
+      const { data: clients, error } = await supabase.rpc('lookup_client_for_ticket', {
+        p_client_code: clientCode.toUpperCase(),
+        p_email: verificationType === "email" ? verificationValue : undefined,
+        p_phone: verificationType === "phone" ? verificationValue : undefined,
+      });
+
+      if (error) {
+        console.error("Lookup error:", error);
+        throw new Error("Errore durante la verifica");
+      }
+
+      if (!clients || clients.length === 0) {
+        toast({
+          title: "Cliente non trovato",
+          description: "Il codice cliente e i dati di verifica non corrispondono. Riprova.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const client = clients[0];
+      
+      // Check if email matches for magic link
+      if (!client.client_email) {
+        toast({
+          title: "Errore",
+          description: "Nessuna email associata a questo cliente. Contatta l'assistenza.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Store verified email for magic link
+      setVerifiedClientEmail(client.client_email);
+
+      // Send magic link to verified client email
+      const { error: magicLinkError } = await supabase.auth.signInWithOtp({
+        email: client.client_email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/client-login`,
+        },
+      });
+
+      if (magicLinkError) {
+        console.error("Magic link error:", magicLinkError);
+        throw new Error("Impossibile inviare il link di accesso");
+      }
+
+      toast({
+        title: "Link inviato!",
+        description: `Abbiamo inviato un link di accesso sicuro a ${client.client_email}`,
+      });
+
+      setViewMode("magic-link-sent");
+    } catch (error: any) {
+      console.error("Client code verification error:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile verificare il codice cliente",
         variant: "destructive",
       });
     } finally {
@@ -384,62 +476,190 @@ export default function ClientLogin() {
       </CardHeader>
 
       <CardContent>
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="la-tua@email.com"
-                className="pl-10"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
+        <Tabs value={loginMethod} onValueChange={(v) => setLoginMethod(v as "password" | "code")} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="password">Email + Password</TabsTrigger>
+            <TabsTrigger value="code">Codice Cliente</TabsTrigger>
+          </TabsList>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="pl-10"
-                disabled={isLoading}
-              />
-            </div>
-          </div>
+          <TabsContent value="password">
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="la-tua@email.com"
+                    className="pl-10"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Accesso in corso...
-              </>
-            ) : (
-              "Accedi"
-            )}
-          </Button>
-        </form>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="pl-10"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
 
-        <button
-          type="button"
-          onClick={() => setViewMode("forgot-password")}
-          className="w-full text-sm text-primary hover:underline mt-4 text-center"
-        >
-          Password dimenticata?
-        </button>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Accesso in corso...
+                  </>
+                ) : (
+                  "Accedi"
+                )}
+              </Button>
+            </form>
+
+            <button
+              type="button"
+              onClick={() => setViewMode("forgot-password")}
+              className="w-full text-sm text-primary hover:underline mt-4 text-center"
+            >
+              Password dimenticata?
+            </button>
+          </TabsContent>
+
+          <TabsContent value="code">
+            <form onSubmit={handleClientCodeVerification} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="client-code">Codice Cliente</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="client-code"
+                    type="text"
+                    value={clientCode}
+                    onChange={(e) => setClientCode(e.target.value.toUpperCase())}
+                    placeholder="CLI00001"
+                    className="pl-10 uppercase"
+                    disabled={isLoading}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Il tuo codice cliente univoco (es. CLI00001)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Verifica identità con</Label>
+                <Tabs value={verificationType} onValueChange={(v) => setVerificationType(v as "email" | "phone")} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="email">Email</TabsTrigger>
+                    <TabsTrigger value="phone">Telefono</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="verification-value">
+                  {verificationType === "email" ? "Email" : "Numero di telefono"}
+                </Label>
+                <div className="relative">
+                  {verificationType === "email" ? (
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  )}
+                  <Input
+                    id="verification-value"
+                    type={verificationType === "email" ? "email" : "tel"}
+                    value={verificationValue}
+                    onChange={(e) => setVerificationValue(e.target.value)}
+                    placeholder={verificationType === "email" ? "la-tua@email.com" : "+39 123 456 7890"}
+                    className="pl-10"
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Verifica in corso...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Invia link di accesso
+                  </>
+                )}
+              </Button>
+
+              <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg mt-4">
+                <Shield className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <p className="text-xs text-muted-foreground">
+                  Riceverai un link di accesso sicuro via email. Nessuna password necessaria!
+                </p>
+              </div>
+            </form>
+          </TabsContent>
+        </Tabs>
 
         <p className="text-xs text-center text-muted-foreground mt-6">
-          Se sei un nuovo cliente, riceverai un'email con un link per impostare la tua password.
+          Se sei un nuovo cliente, riceverai un'email con le credenziali di accesso.
         </p>
+      </CardContent>
+    </>
+  );
+
+  const renderMagicLinkSentForm = () => (
+    <>
+      <CardHeader className="text-center">
+        <div className="mx-auto w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mb-4">
+          <Send className="w-8 h-8 text-green-500" />
+        </div>
+        <CardTitle className="text-2xl">Link inviato!</CardTitle>
+        <CardDescription>
+          Controlla la tua casella email
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        <div className="p-4 bg-muted/50 rounded-lg text-center">
+          <p className="text-sm text-muted-foreground mb-2">
+            Abbiamo inviato un link di accesso sicuro a:
+          </p>
+          <p className="font-medium">{verifiedClientEmail}</p>
+        </div>
+
+        <div className="space-y-2 text-sm text-muted-foreground">
+          <p>✓ Clicca sul link nell'email per accedere</p>
+          <p>✓ Il link è valido per 1 ora</p>
+          <p>✓ Controlla anche la cartella spam</p>
+        </div>
+
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => {
+            setViewMode("login");
+            setClientCode("");
+            setVerificationValue("");
+            setVerifiedClientEmail(null);
+          }}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Torna al login
+        </Button>
       </CardContent>
     </>
   );
@@ -574,6 +794,7 @@ export default function ClientLogin() {
 
         <Card className="shadow-xl">
           {viewMode === "login" && renderLoginForm()}
+          {viewMode === "magic-link-sent" && renderMagicLinkSentForm()}
           {viewMode === "forgot-password" && renderForgotPasswordForm()}
           {viewMode === "reset-password" && renderResetPasswordForm()}
         </Card>
