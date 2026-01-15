@@ -11,7 +11,7 @@ import { Mail, Lock, LogIn, ArrowLeft, KeyRound, Loader2, User, Phone, Send, Shi
 import { Link } from "react-router-dom";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
-type ViewMode = "login" | "client-code" | "forgot-password" | "reset-password" | "magic-link-sent";
+type ViewMode = "login" | "client-code" | "forgot-password" | "reset-password" | "otp-verification";
 
 function detectAuthFlowFromUrl(): { isRecoveryOrInvite: boolean; type: string | null } {
   const hash = window.location.hash ?? "";
@@ -62,6 +62,7 @@ export default function ClientLogin() {
   const [verificationValue, setVerificationValue] = useState("");
   const [verificationType, setVerificationType] = useState<"email" | "phone">("email");
   const [verifiedClientEmail, setVerifiedClientEmail] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState("");
   
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
@@ -268,25 +269,25 @@ export default function ClientLogin() {
       // Store verified email for magic link
       setVerifiedClientEmail(client.client_email);
 
-      // Send magic link to verified client email
-      const { error: magicLinkError } = await supabase.auth.signInWithOtp({
+      // Send OTP code (not magic link) to verified client email
+      const { error: otpError } = await supabase.auth.signInWithOtp({
         email: client.client_email,
         options: {
-          emailRedirectTo: `${window.location.origin}/client-login`,
+          shouldCreateUser: false,
         },
       });
 
-      if (magicLinkError) {
-        console.error("Magic link error:", magicLinkError);
-        throw new Error("Impossibile inviare il link di accesso");
+      if (otpError) {
+        console.error("OTP error:", otpError);
+        throw new Error("Impossibile inviare il codice di verifica");
       }
 
       toast({
-        title: "Link inviato!",
-        description: `Abbiamo inviato un link di accesso sicuro a ${client.client_email}`,
+        title: "Codice inviato!",
+        description: `Abbiamo inviato un codice di verifica a ${client.client_email}`,
       });
 
-      setViewMode("magic-link-sent");
+      setViewMode("otp-verification");
     } catch (error: any) {
       console.error("Client code verification error:", error);
       toast({
@@ -599,7 +600,7 @@ export default function ClientLogin() {
                 ) : (
                   <>
                     <Send className="w-4 h-4 mr-2" />
-                    Invia link di accesso
+                    Invia codice di verifica
                   </>
                 )}
               </Button>
@@ -607,7 +608,7 @@ export default function ClientLogin() {
               <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg mt-4">
                 <Shield className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                 <p className="text-xs text-muted-foreground">
-                  Riceverai un link di accesso sicuro via email. Nessuna password necessaria!
+                  Riceverai un codice di verifica via email. Inseriscilo per accedere in modo sicuro!
                 </p>
               </div>
             </form>
@@ -621,29 +622,110 @@ export default function ClientLogin() {
     </>
   );
 
-  const renderMagicLinkSentForm = () => (
+  const handleOtpVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!otpCode || otpCode.length < 6) {
+      toast({
+        title: "Errore",
+        description: "Inserisci il codice di verifica a 6 cifre",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!verifiedClientEmail) {
+      toast({
+        title: "Errore",
+        description: "Email di verifica non trovata. Riprova.",
+        variant: "destructive",
+      });
+      setViewMode("login");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: verifiedClientEmail,
+        token: otpCode,
+        type: "email",
+      });
+
+      if (error) {
+        console.error("OTP verification error:", error);
+        throw new Error("Codice non valido o scaduto. Riprova.");
+      }
+
+      toast({
+        title: "Accesso effettuato!",
+        description: "Benvenuto nel portale clienti",
+      });
+      
+      navigate("/client-portal");
+    } catch (error: any) {
+      console.error("OTP verification error:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Codice non valido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const renderOtpVerificationForm = () => (
     <>
       <CardHeader className="text-center">
         <div className="mx-auto w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mb-4">
-          <Send className="w-8 h-8 text-green-500" />
+          <Shield className="w-8 h-8 text-green-500" />
         </div>
-        <CardTitle className="text-2xl">Link inviato!</CardTitle>
+        <CardTitle className="text-2xl">Verifica codice</CardTitle>
         <CardDescription>
-          Controlla la tua casella email
+          Inserisci il codice ricevuto via email
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4">
         <div className="p-4 bg-muted/50 rounded-lg text-center">
           <p className="text-sm text-muted-foreground mb-2">
-            Abbiamo inviato un link di accesso sicuro a:
+            Abbiamo inviato un codice di verifica a:
           </p>
           <p className="font-medium">{verifiedClientEmail}</p>
         </div>
 
+        <form onSubmit={handleOtpVerification} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="otp-code">Codice di verifica</Label>
+            <Input
+              id="otp-code"
+              type="text"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="123456"
+              className="text-center text-2xl tracking-widest"
+              maxLength={6}
+              disabled={isLoading}
+              autoFocus
+            />
+          </div>
+
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Verifica in corso...
+              </>
+            ) : (
+              "Verifica e accedi"
+            )}
+          </Button>
+        </form>
+
         <div className="space-y-2 text-sm text-muted-foreground">
-          <p>✓ Clicca sul link nell'email per accedere</p>
-          <p>✓ Il link è valido per 1 ora</p>
+          <p>✓ Il codice è valido per 5 minuti</p>
           <p>✓ Controlla anche la cartella spam</p>
         </div>
 
@@ -655,6 +737,7 @@ export default function ClientLogin() {
             setClientCode("");
             setVerificationValue("");
             setVerifiedClientEmail(null);
+            setOtpCode("");
           }}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -794,7 +877,7 @@ export default function ClientLogin() {
 
         <Card className="shadow-xl">
           {viewMode === "login" && renderLoginForm()}
-          {viewMode === "magic-link-sent" && renderMagicLinkSentForm()}
+          {viewMode === "otp-verification" && renderOtpVerificationForm()}
           {viewMode === "forgot-password" && renderForgotPasswordForm()}
           {viewMode === "reset-password" && renderResetPasswordForm()}
         </Card>

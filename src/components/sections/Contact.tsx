@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Mail, Send, CheckCircle, MessageCircle, User, Search, X } from "lucide-react";
+import { Mail, Send, CheckCircle, MessageCircle, User, Search, X, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
@@ -82,6 +82,8 @@ interface RecognizedClient {
   code: string;
 }
 
+type ClientVerificationStep = "lookup" | "otp-sent" | "verified";
+
 export const Contact = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
@@ -105,6 +107,10 @@ export const Contact = () => {
   const [lookupType, setLookupType] = useState<"code" | "email" | "phone">("code");
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [recognizedClient, setRecognizedClient] = useState<RecognizedClient | null>(null);
+  const [clientVerificationStep, setClientVerificationStep] = useState<ClientVerificationStep>("lookup");
+  const [pendingClient, setPendingClient] = useState<RecognizedClient | null>(null);
+  const [otpCode, setOtpCode] = useState("");
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
   const handleLookupClient = async () => {
     if (!lookupValue.trim()) {
@@ -134,10 +140,26 @@ export const Contact = () => {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        setRecognizedClient(data[0] as RecognizedClient);
+        const client = data[0] as RecognizedClient;
+        setPendingClient(client);
+        
+        // Send OTP to client email
+        const { error: otpError } = await supabase.auth.signInWithOtp({
+          email: client.client_email,
+          options: {
+            shouldCreateUser: false,
+          },
+        });
+
+        if (otpError) {
+          console.error("OTP error:", otpError);
+          throw new Error("Impossibile inviare il codice di verifica");
+        }
+
+        setClientVerificationStep("otp-sent");
         toast({
-          title: "Cliente riconosciuto!",
-          description: `Benvenuto ${data[0].client_name}`,
+          title: "Codice inviato!",
+          description: `Abbiamo inviato un codice di verifica a ${client.client_email}`,
         });
       } else {
         toast({
@@ -159,9 +181,64 @@ export const Contact = () => {
     }
   };
 
+  const handleVerifyOtp = async () => {
+    if (!otpCode || otpCode.length < 6) {
+      toast({
+        title: "Errore",
+        description: "Inserisci il codice di verifica a 6 cifre",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!pendingClient) {
+      toast({
+        title: "Errore",
+        description: "Cliente non trovato. Riprova.",
+        variant: "destructive",
+      });
+      setClientVerificationStep("lookup");
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: pendingClient.client_email,
+        token: otpCode,
+        type: "email",
+      });
+
+      if (error) {
+        console.error("OTP verification error:", error);
+        throw new Error("Codice non valido o scaduto. Riprova.");
+      }
+
+      setRecognizedClient(pendingClient);
+      setClientVerificationStep("verified");
+      toast({
+        title: "Identità verificata!",
+        description: `Benvenuto ${pendingClient.client_name}`,
+      });
+    } catch (error: any) {
+      console.error("OTP verification error:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Codice non valido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
   const handleClearRecognizedClient = () => {
     setRecognizedClient(null);
+    setPendingClient(null);
     setLookupValue("");
+    setOtpCode("");
+    setClientVerificationStep("lookup");
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -292,7 +369,10 @@ export const Contact = () => {
     setCountryCode("+39");
     setFormErrors({});
     setRecognizedClient(null);
+    setPendingClient(null);
     setLookupValue("");
+    setOtpCode("");
+    setClientVerificationStep("lookup");
     setClientMode("new");
   };
 
@@ -397,10 +477,10 @@ export const Contact = () => {
               </TabsList>
 
               <TabsContent value="existing" className="mt-4">
-                {!recognizedClient ? (
+                {clientVerificationStep === "lookup" && (
                   <div className="space-y-4 p-4 bg-secondary/30 rounded-xl">
                     <p className="text-sm text-muted-foreground">
-                      Inserisci il tuo codice cliente, email o numero di telefono per saltare i campi anagrafici.
+                      Inserisci il tuo codice cliente, email o numero di telefono. Riceverai un codice di verifica via email.
                     </p>
                     <div className="flex gap-2">
                       <Select value={lookupType} onValueChange={(v) => setLookupType(v as "code" | "email" | "phone")}>
@@ -442,7 +522,67 @@ export const Contact = () => {
                       </Button>
                     </div>
                   </div>
-                ) : (
+                )}
+
+                {clientVerificationStep === "otp-sent" && pendingClient && (
+                  <div className="space-y-4 p-4 bg-secondary/30 rounded-xl">
+                    <div className="text-center">
+                      <div className="w-12 h-12 mx-auto mb-3 bg-primary/10 rounded-full flex items-center justify-center">
+                        <Shield size={24} className="text-primary" />
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Codice di verifica inviato a:
+                      </p>
+                      <p className="font-medium">{pendingClient.client_email}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Input
+                        placeholder="123456"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        className="text-center text-2xl tracking-widest bg-background"
+                        maxLength={6}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleVerifyOtp();
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={handleClearRecognizedClient}
+                        className="flex-1"
+                      >
+                        <X size={16} className="mr-2" />
+                        Annulla
+                      </Button>
+                      <Button 
+                        type="button" 
+                        onClick={handleVerifyOtp}
+                        disabled={isVerifyingOtp || otpCode.length < 6}
+                        className="flex-1"
+                      >
+                        {isVerifyingOtp ? (
+                          <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <CheckCircle size={16} className="mr-2" />
+                            Verifica
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Il codice è valido per 5 minuti. Controlla anche lo spam.
+                    </p>
+                  </div>
+                )}
+
+                {clientVerificationStep === "verified" && recognizedClient && (
                   <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
