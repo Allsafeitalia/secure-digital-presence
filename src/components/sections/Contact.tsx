@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Mail, Send, CheckCircle, MessageCircle, User, Search, X, Shield } from "lucide-react";
+import { maskEmail } from "@/lib/maskEmail";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
@@ -159,7 +160,7 @@ export const Contact = () => {
         setClientVerificationStep("otp-sent");
         toast({
           title: "Codice inviato!",
-          description: `Abbiamo inviato un codice di verifica a ${client.client_email}`,
+          description: `Abbiamo inviato un codice di verifica a ${maskEmail(client.client_email)}`,
         });
       } else {
         toast({
@@ -533,7 +534,7 @@ export const Contact = () => {
                       <p className="text-sm text-muted-foreground mb-2">
                         Codice di verifica inviato a:
                       </p>
-                      <p className="font-medium">{pendingClient.client_email}</p>
+                      <p className="font-medium">{maskEmail(pendingClient.client_email)}</p>
                     </div>
                     <div className="space-y-2">
                       <Input
@@ -591,7 +592,7 @@ export const Contact = () => {
                         </div>
                         <div>
                           <p className="font-medium">{recognizedClient.client_name}</p>
-                          <p className="text-sm text-muted-foreground">{recognizedClient.client_email}</p>
+                          <p className="text-sm text-muted-foreground">{maskEmail(recognizedClient.client_email)}</p>
                         </div>
                       </div>
                       <Button

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mail, Lock, LogIn, ArrowLeft, KeyRound, Loader2, User, Phone, Send, Shield } from "lucide-react";
+import { maskEmail } from "@/lib/maskEmail";
 import { Link } from "react-router-dom";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
@@ -284,7 +285,7 @@ export default function ClientLogin() {
 
       toast({
         title: "Codice inviato!",
-        description: `Abbiamo inviato un codice di verifica a ${client.client_email}`,
+        description: `Abbiamo inviato un codice di verifica a ${maskEmail(client.client_email)}`,
       });
 
       setViewMode("otp-verification");
@@ -693,7 +694,7 @@ export default function ClientLogin() {
           <p className="text-sm text-muted-foreground mb-2">
             Abbiamo inviato un codice di verifica a:
           </p>
-          <p className="font-medium">{verifiedClientEmail}</p>
+          <p className="font-medium">{verifiedClientEmail ? maskEmail(verifiedClientEmail) : ""}</p>
         </div>
 
         <form onSubmit={handleOtpVerification} className="space-y-4">
