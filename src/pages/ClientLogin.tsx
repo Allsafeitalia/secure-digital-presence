@@ -64,6 +64,8 @@ export default function ClientLogin() {
   const [verificationType, setVerificationType] = useState<"email" | "phone">("email");
   const [verifiedClientEmail, setVerifiedClientEmail] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState("");
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
   
   const [isLoading, setIsLoading] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
@@ -161,6 +163,55 @@ export default function ClientLogin() {
       subscription.unsubscribe();
     };
   }, [navigate]);
+
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      const timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCountdown]);
+
+  // Start countdown when entering OTP verification mode
+  useEffect(() => {
+    if (viewMode === "otp-verification") {
+      setResendCountdown(60);
+    }
+  }, [viewMode]);
+
+  const handleResendOtp = async () => {
+    if (!verifiedClientEmail || resendCountdown > 0) return;
+    
+    setIsResending(true);
+    
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: verifiedClientEmail,
+        options: {
+          shouldCreateUser: false,
+        },
+      });
+
+      if (error) {
+        throw new Error("Impossibile reinviare il codice");
+      }
+
+      setResendCountdown(60);
+      toast({
+        title: "Codice reinviato!",
+        description: `Nuovo codice inviato a ${maskEmail(verifiedClientEmail)}`,
+      });
+    } catch (error: any) {
+      console.error("Resend OTP error:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile reinviare il codice",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -729,6 +780,31 @@ export default function ClientLogin() {
           <p>✓ Il codice è valido per 5 minuti</p>
           <p>✓ Controlla anche la cartella spam</p>
         </div>
+
+        {resendCountdown > 0 ? (
+          <p className="text-center text-sm text-muted-foreground">
+            Puoi richiedere un nuovo codice tra <span className="font-medium text-primary">{resendCountdown}s</span>
+          </p>
+        ) : (
+          <Button
+            variant="ghost"
+            className="w-full"
+            onClick={handleResendOtp}
+            disabled={isResending}
+          >
+            {isResending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Invio in corso...
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4 mr-2" />
+                Non hai ricevuto il codice? Rinvia
+              </>
+            )}
+          </Button>
+        )}
 
         <Button
           variant="outline"
