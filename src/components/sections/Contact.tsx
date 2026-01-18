@@ -136,14 +136,15 @@ export const Contact = () => {
     setIsResending(true);
     
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: pendingClient.client_email,
-        options: {
-          shouldCreateUser: false,
+      const response = await supabase.functions.invoke('send-verification-code', {
+        body: {
+          email: pendingClient.client_email,
+          purpose: 'contact_verification',
+          clientName: pendingClient.client_name,
         },
       });
 
-      if (error) {
+      if (response.error) {
         throw new Error("Impossibile reinviare il codice");
       }
 
@@ -195,16 +196,17 @@ export const Contact = () => {
         const client = data[0] as RecognizedClient;
         setPendingClient(client);
         
-        // Send OTP to client email
-        const { error: otpError } = await supabase.auth.signInWithOtp({
-          email: client.client_email,
-          options: {
-            shouldCreateUser: false,
+        // Send OTP to client email via custom edge function
+        const response = await supabase.functions.invoke('send-verification-code', {
+          body: {
+            email: client.client_email,
+            purpose: 'contact_verification',
+            clientName: client.client_name,
           },
         });
 
-        if (otpError) {
-          console.error("OTP error:", otpError);
+        if (response.error) {
+          console.error("OTP error:", response.error);
           throw new Error("Impossibile inviare il codice di verifica");
         }
 
@@ -256,15 +258,18 @@ export const Contact = () => {
     setIsVerifyingOtp(true);
 
     try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: pendingClient.client_email,
-        token: otpCode,
-        type: "email",
+      // Verify OTP via custom edge function
+      const response = await supabase.functions.invoke('verify-code-and-login', {
+        body: {
+          email: pendingClient.client_email,
+          code: otpCode,
+          purpose: 'contact_verification',
+        },
       });
 
-      if (error) {
-        console.error("OTP verification error:", error);
-        throw new Error("Codice non valido o scaduto. Riprova.");
+      if (response.error || response.data?.error) {
+        console.error("OTP verification error:", response.error || response.data?.error);
+        throw new Error(response.data?.error || "Codice non valido o scaduto. Riprova.");
       }
 
       setRecognizedClient(pendingClient);
