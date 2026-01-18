@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -112,6 +112,57 @@ export const Contact = () => {
   const [pendingClient, setPendingClient] = useState<RecognizedClient | null>(null);
   const [otpCode, setOtpCode] = useState("");
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
+
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      const timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCountdown]);
+
+  // Start countdown when OTP is sent
+  useEffect(() => {
+    if (clientVerificationStep === "otp-sent") {
+      setResendCountdown(60);
+    }
+  }, [clientVerificationStep]);
+
+  const handleResendOtp = async () => {
+    if (!pendingClient || resendCountdown > 0) return;
+    
+    setIsResending(true);
+    
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: pendingClient.client_email,
+        options: {
+          shouldCreateUser: false,
+        },
+      });
+
+      if (error) {
+        throw new Error("Impossibile reinviare il codice");
+      }
+
+      setResendCountdown(60);
+      toast({
+        title: "Codice reinviato!",
+        description: `Nuovo codice inviato a ${maskEmail(pendingClient.client_email)}`,
+      });
+    } catch (error: any) {
+      console.error("Resend OTP error:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile reinviare il codice",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResending(false);
+    }
+  };
 
   const handleLookupClient = async () => {
     if (!lookupValue.trim()) {
@@ -577,9 +628,27 @@ export const Contact = () => {
                         )}
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground text-center">
-                      Il codice è valido per 5 minuti. Controlla anche lo spam.
-                    </p>
+                    {resendCountdown > 0 ? (
+                      <p className="text-xs text-muted-foreground text-center">
+                        Il codice è valido per 5 minuti. Puoi richiederne uno nuovo tra <span className="font-medium text-primary">{resendCountdown}s</span>
+                      </p>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="w-full"
+                        onClick={handleResendOtp}
+                        disabled={isResending}
+                      >
+                        {isResending ? (
+                          <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin mr-2" />
+                        ) : (
+                          <Send size={14} className="mr-2" />
+                        )}
+                        {isResending ? "Invio in corso..." : "Non hai ricevuto il codice? Rinvia"}
+                      </Button>
+                    )}
                   </div>
                 )}
 
