@@ -185,14 +185,14 @@ export default function ClientLogin() {
     setIsResending(true);
     
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: verifiedClientEmail,
-        options: {
-          shouldCreateUser: false,
+      const response = await supabase.functions.invoke('send-verification-code', {
+        body: {
+          email: verifiedClientEmail,
+          purpose: 'login',
         },
       });
 
-      if (error) {
+      if (response.error) {
         throw new Error("Impossibile reinviare il codice");
       }
 
@@ -318,19 +318,20 @@ export default function ClientLogin() {
         return;
       }
 
-      // Store verified email for magic link
+      // Store verified email for OTP
       setVerifiedClientEmail(client.client_email);
 
-      // Send OTP code (not magic link) to verified client email
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email: client.client_email,
-        options: {
-          shouldCreateUser: false,
+      // Send OTP code via custom edge function (only sends OTP, no magic link)
+      const response = await supabase.functions.invoke('send-verification-code', {
+        body: {
+          email: client.client_email,
+          purpose: 'login',
+          clientName: client.client_name,
         },
       });
 
-      if (otpError) {
-        console.error("OTP error:", otpError);
+      if (response.error) {
+        console.error("OTP error:", response.error);
         throw new Error("Impossibile inviare il codice di verifica");
       }
 
@@ -699,15 +700,39 @@ export default function ClientLogin() {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: verifiedClientEmail,
-        token: otpCode,
-        type: "email",
+      // Verify OTP via custom edge function and get magic link for auth
+      const response = await supabase.functions.invoke('verify-code-and-login', {
+        body: {
+          email: verifiedClientEmail,
+          code: otpCode,
+          purpose: 'login',
+        },
       });
 
-      if (error) {
-        console.error("OTP verification error:", error);
-        throw new Error("Codice non valido o scaduto. Riprova.");
+      if (response.error || response.data?.error) {
+        console.error("OTP verification error:", response.error || response.data?.error);
+        throw new Error(response.data?.error || "Codice non valido o scaduto. Riprova.");
+      }
+
+      // If we got an action link, use it to authenticate
+      if (response.data?.actionLink) {
+        // Extract tokens from the action link and set session
+        const url = new URL(response.data.actionLink);
+        const hashParams = new URLSearchParams(url.hash.substring(1));
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+
+        if (accessToken && refreshToken) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (sessionError) {
+            console.error("Session error:", sessionError);
+            throw new Error("Errore durante l'autenticazione");
+          }
+        }
       }
 
       toast({
