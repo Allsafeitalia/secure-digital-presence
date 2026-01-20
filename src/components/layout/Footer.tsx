@@ -53,9 +53,9 @@ export const Footer = () => {
               rel="noopener noreferrer"
               className="hover:underline inline-flex items-center gap-1 font-semibold"
             >
-              <span className="text-red-500">giuseppe</span>
-              <span className="text-white">mastronardi</span>
-              <span className="text-red-500">.dev</span>
+              <span className="text-primary">giuseppe</span>
+              <span className="text-foreground">mastronardi</span>
+              <span className="text-primary">.dev</span>
             </a>
           </p>
         </div>
