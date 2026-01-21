@@ -32,6 +32,7 @@ import { CancellationRequests } from "@/components/admin/CancellationRequests";
 import { ServiceMonitoring } from "@/components/admin/ServiceMonitoring";
 import { MaintenanceRequests } from "@/components/admin/MaintenanceRequests";
 import { ConvertTicketModal } from "@/components/admin/ConvertTicketModal";
+import { AnalyticsApiKeys } from "@/components/admin/AnalyticsApiKeys";
 
 interface ContactTicket {
   id: string;
@@ -627,8 +628,9 @@ const Admin = () => {
           ) : viewMode === "cancellations" ? (
             <CancellationRequests />
           ) : viewMode === "settings" ? (
-            <div className="p-4 md:p-8 max-w-3xl w-full mx-auto">
+            <div className="p-4 md:p-8 max-w-4xl w-full mx-auto space-y-6">
               <EmailSettings />
+              <AnalyticsApiKeys />
             </div>
           ) : viewMode === "tickets" && selectedTicket ? (
             <div className="p-4 md:p-8 max-w-3xl w-full">

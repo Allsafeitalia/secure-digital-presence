@@ -14,6 +14,184 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_api_keys: {
+        Row: {
+          api_key: string
+          client_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          last_used_at: string | null
+        }
+        Insert: {
+          api_key?: string
+          client_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+        }
+        Update: {
+          api_key?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_api_keys_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_daily_stats: {
+        Row: {
+          client_id: string
+          created_at: string
+          date: string
+          desktop_visits: number
+          id: string
+          mobile_visits: number
+          page_breakdown: Json | null
+          referrer_breakdown: Json | null
+          tablet_visits: number
+          total_visits: number
+          unique_visitors: number
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          date: string
+          desktop_visits?: number
+          id?: string
+          mobile_visits?: number
+          page_breakdown?: Json | null
+          referrer_breakdown?: Json | null
+          tablet_visits?: number
+          total_visits?: number
+          unique_visitors?: number
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          date?: string
+          desktop_visits?: number
+          id?: string
+          mobile_visits?: number
+          page_breakdown?: Json | null
+          referrer_breakdown?: Json | null
+          tablet_visits?: number
+          total_visits?: number
+          unique_visitors?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_daily_stats_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_visits: {
+        Row: {
+          browser: string | null
+          city: string | null
+          client_id: string
+          country: string | null
+          created_at: string
+          device_type: string
+          id: string
+          load_time_ms: number | null
+          os: string | null
+          page_title: string | null
+          page_url: string
+          referrer_source: string | null
+          referrer_url: string | null
+          screen_height: number | null
+          screen_width: number | null
+          service_id: string | null
+          session_id: string
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          visited_at: string
+          visitor_id: string
+        }
+        Insert: {
+          browser?: string | null
+          city?: string | null
+          client_id: string
+          country?: string | null
+          created_at?: string
+          device_type?: string
+          id?: string
+          load_time_ms?: number | null
+          os?: string | null
+          page_title?: string | null
+          page_url: string
+          referrer_source?: string | null
+          referrer_url?: string | null
+          screen_height?: number | null
+          screen_width?: number | null
+          service_id?: string | null
+          session_id: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visited_at?: string
+          visitor_id: string
+        }
+        Update: {
+          browser?: string | null
+          city?: string | null
+          client_id?: string
+          country?: string | null
+          created_at?: string
+          device_type?: string
+          id?: string
+          load_time_ms?: number | null
+          os?: string | null
+          page_title?: string | null
+          page_url?: string
+          referrer_source?: string | null
+          referrer_url?: string | null
+          screen_height?: number | null
+          screen_width?: number | null
+          service_id?: string | null
+          session_id?: string
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visited_at?: string
+          visitor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_visits_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analytics_visits_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "client_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_services: {
         Row: {
           auto_renew: boolean
