@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -40,9 +41,11 @@ import {
   Calendar,
   AlertTriangle,
   Power,
+  BarChart3,
 } from "lucide-react";
 import { MaintenanceHistory } from "@/components/client/MaintenanceHistory";
 import { PendingPayments } from "@/components/client/PendingPayments";
+import { AnalyticsDashboard } from "@/components/client/AnalyticsDashboard";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
 type ServiceType = "website" | "domain" | "hosting" | "backup" | "email" | "ssl" | "maintenance" | "other";
@@ -492,261 +495,290 @@ export default function ClientPortal() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8 space-y-8">
-        {/* Stats */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-primary/10">
-                  <Package className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{activeServices.length}</p>
-                  <p className="text-sm text-muted-foreground">Servizi Attivi</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <main className="max-w-6xl mx-auto px-6 py-8">
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
+            <TabsTrigger value="overview" className="gap-2">
+              <Package className="h-4 w-4" />
+              Panoramica
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Statistiche Sito
+            </TabsTrigger>
+            <TabsTrigger value="maintenance" className="gap-2">
+              <Wrench className="h-4 w-4" />
+              Manutenzioni
+            </TabsTrigger>
+          </TabsList>
 
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-green-500/10">
-                  <Euro className="w-6 h-6 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{formatPrice(totalYearlyCost)}</p>
-                  <p className="text-sm text-muted-foreground">Costo Annuale</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-8">
+            {/* Stats */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-full bg-primary/10">
+                      <Package className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{activeServices.length}</p>
+                      <p className="text-sm text-muted-foreground">Servizi Attivi</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-blue-500/10">
-                  <Euro className="w-6 h-6 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{formatPrice(totalMonthlyCost)}</p>
-                  <p className="text-sm text-muted-foreground">Costo Mensile</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-full bg-accent/50">
+                      <Euro className="w-6 h-6 text-accent-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{formatPrice(totalYearlyCost)}</p>
+                      <p className="text-sm text-muted-foreground">Costo Annuale</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-orange-500/10">
-                  <Calendar className="w-6 h-6 text-orange-500" />
-                </div>
-                <div>
-                  <p className="text-lg font-bold">
-                    {nextRenewalService ? calculateNextRenewal(nextRenewalService) : "N/D"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Prossimo Rinnovo</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-full bg-secondary">
+                      <Euro className="w-6 h-6 text-secondary-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{formatPrice(totalMonthlyCost)}</p>
+                      <p className="text-sm text-muted-foreground">Costo Mensile</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-        {/* Online/Offline Status */}
-        <div className="grid md:grid-cols-2 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-green-500/10">
-                  <Wifi className="w-6 h-6 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{onlineServices.length}</p>
-                  <p className="text-sm text-muted-foreground">Servizi Online</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-full bg-muted">
+                      <Calendar className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold">
+                        {nextRenewalService ? calculateNextRenewal(nextRenewalService) : "N/D"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Prossimo Rinnovo</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-full ${offlineServices.length > 0 ? "bg-red-500/10" : "bg-muted"}`}>
-                  <WifiOff className={`w-6 h-6 ${offlineServices.length > 0 ? "text-red-500" : "text-muted-foreground"}`} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{offlineServices.length}</p>
-                  <p className="text-sm text-muted-foreground">Servizi Offline</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            {/* Online/Offline Status */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-full bg-primary/10">
+                      <Wifi className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{onlineServices.length}</p>
+                      <p className="text-sm text-muted-foreground">Servizi Online</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-        {/* Services Grid */}
-        <div>
-          <h2 className="text-xl font-semibold mb-4">I Tuoi Servizi</h2>
-          
-          {services.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Nessun servizio attivo</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {services.map((service) => {
-                const config = serviceTypeConfig[service.service_type];
-                const Icon = config.icon;
-                const statusConf = statusConfig[service.status];
-                const pendingCancellation = hasPendingCancellation(service.id);
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-full ${offlineServices.length > 0 ? "bg-destructive/10" : "bg-muted"}`}>
+                      <WifiOff className={`w-6 h-6 ${offlineServices.length > 0 ? "text-destructive" : "text-muted-foreground"}`} />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{offlineServices.length}</p>
+                      <p className="text-sm text-muted-foreground">Servizi Offline</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-                return (
-                  <Card key={service.id} className="relative overflow-hidden">
-                    <div className={`absolute top-0 left-0 w-1 h-full ${config.color}`} />
-                    
-                    <CardHeader className="pb-2">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${config.color}/10`}>
-                            <Icon className={`w-5 h-5`} style={{ color: config.color.replace("bg-", "") }} />
+            {/* Services Grid */}
+            <div>
+              <h2 className="text-xl font-semibold mb-4">I Tuoi Servizi</h2>
+              
+              {services.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center text-muted-foreground">
+                    <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Nessun servizio attivo</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {services.map((service) => {
+                    const config = serviceTypeConfig[service.service_type];
+                    const Icon = config.icon;
+                    const statusConf = statusConfig[service.status];
+                    const pendingCancellation = hasPendingCancellation(service.id);
+
+                    return (
+                      <Card key={service.id} className="relative overflow-hidden">
+                        <div className={`absolute top-0 left-0 w-1 h-full ${config.color}`} />
+                        
+                        <CardHeader className="pb-2">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${config.color}/10`}>
+                                <Icon className={`w-5 h-5`} style={{ color: config.color.replace("bg-", "") }} />
+                              </div>
+                              <div>
+                                <CardTitle className="text-base">{service.service_name}</CardTitle>
+                                <CardDescription>{config.label}</CardDescription>
+                              </div>
+                            </div>
+                            <Badge variant={statusConf.variant}>{statusConf.label}</Badge>
                           </div>
-                          <div>
-                            <CardTitle className="text-base">{service.service_name}</CardTitle>
-                            <CardDescription>{config.label}</CardDescription>
-                          </div>
-                        </div>
-                        <Badge variant={statusConf.variant}>{statusConf.label}</Badge>
-                      </div>
-                    </CardHeader>
+                        </CardHeader>
 
-                    <CardContent className="space-y-3">
-                      {service.description && (
-                        <p className="text-sm text-muted-foreground">{service.description}</p>
-                      )}
-
-                      {/* Price and billing */}
-                      <div className="flex items-center justify-between text-sm bg-muted/50 rounded-lg p-2">
-                        <div className="flex items-center gap-2">
-                          <Euro className="w-4 h-4 text-green-600" />
-                          <span className="font-medium">{formatPrice(service.price)}</span>
-                        </div>
-                        <span className="text-muted-foreground">
-                          {billingCycleLabels[service.billing_cycle]}
-                        </span>
-                      </div>
-
-                      {service.domain_name && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Globe className="w-4 h-4 text-muted-foreground" />
-                          <span>{service.domain_name}</span>
-                        </div>
-                      )}
-
-                      {service.server_name && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Server className="w-4 h-4 text-muted-foreground" />
-                          <span>{service.server_name}</span>
-                        </div>
-                      )}
-
-                      {service.expiration_date && (
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-muted-foreground" />
-                            <span>Scade il {formatDate(service.expiration_date)}</span>
-                          </div>
-                          {service.auto_renew && (
-                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                              Rinnovo auto
-                            </Badge>
+                        <CardContent className="space-y-3">
+                          {service.description && (
+                            <p className="text-sm text-muted-foreground">{service.description}</p>
                           )}
-                        </div>
-                      )}
 
-                      {/* Next renewal info */}
-                      {service.expiration_date && (
-                        <div className="flex items-center gap-2 text-sm text-orange-600">
-                          <Calendar className="w-4 h-4" />
-                          <span>Prossimo rinnovo: {calculateNextRenewal(service)}</span>
-                        </div>
-                      )}
-
-                      {/* Monitoring Status */}
-                      {service.url_to_monitor && (
-                        <div className="pt-2 border-t">
-                          <div className="flex items-center justify-between">
+                          {/* Price and billing */}
+                          <div className="flex items-center justify-between text-sm bg-muted/50 rounded-lg p-2">
                             <div className="flex items-center gap-2">
-                              {service.is_online ? (
-                                <>
-                                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                  <span className="text-sm text-green-600 font-medium">Online</span>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="w-2 h-2 rounded-full bg-red-500" />
-                                  <span className="text-sm text-red-600 font-medium">Offline</span>
-                                </>
+                              <Euro className="w-4 h-4 text-primary" />
+                              <span className="font-medium">{formatPrice(service.price)}</span>
+                            </div>
+                            <span className="text-muted-foreground">
+                              {billingCycleLabels[service.billing_cycle]}
+                            </span>
+                          </div>
+
+                          {service.domain_name && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Globe className="w-4 h-4 text-muted-foreground" />
+                              <span>{service.domain_name}</span>
+                            </div>
+                          )}
+
+                          {service.server_name && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Server className="w-4 h-4 text-muted-foreground" />
+                              <span>{service.server_name}</span>
+                            </div>
+                          )}
+
+                          {/* Monitoring Status */}
+                          {service.url_to_monitor && (
+                            <div className={`flex items-center justify-between text-sm p-2 rounded-lg ${
+                              service.is_online ? "bg-primary/10" : "bg-destructive/10"
+                            }`}>
+                              <div className="flex items-center gap-2">
+                                {service.is_online ? (
+                                  <Wifi className="w-4 h-4 text-primary" />
+                                ) : (
+                                  <WifiOff className="w-4 h-4 text-destructive" />
+                                )}
+                                <span className={service.is_online ? "text-primary" : "text-destructive"}>
+                                  {service.is_online ? "Online" : "Offline"}
+                                </span>
+                              </div>
+                              {service.last_response_time_ms && service.is_online && (
+                                <span className="text-muted-foreground">
+                                  {service.last_response_time_ms}ms
+                                </span>
                               )}
                             </div>
-                            {service.last_response_time_ms && service.is_online && (
-                              <span className="text-xs text-muted-foreground">
-                                {service.last_response_time_ms}ms
-                              </span>
+                          )}
+
+                          {service.last_check_at && (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Clock className="w-3 h-3" />
+                              <span>Ultimo controllo: {formatLastCheck(service.last_check_at)}</span>
+                            </div>
+                          )}
+
+                          {service.expiration_date && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Calendar className="w-4 h-4 text-muted-foreground" />
+                              <span>Scadenza: {formatDate(service.expiration_date)}</span>
+                            </div>
+                          )}
+
+                          {/* Auto Renew Badge */}
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={service.auto_renew ? "default" : "outline"} className="text-xs">
+                                {service.auto_renew ? (
+                                  <>
+                                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                                    Rinnovo Automatico
+                                  </>
+                                ) : (
+                                  <>
+                                    <XCircle className="w-3 h-3 mr-1" />
+                                    Rinnovo Manuale
+                                  </>
+                                )}
+                              </Badge>
+                            </div>
+                            
+                            {/* Cancellation Button */}
+                            {!pendingCancellation && service.status === "active" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => {
+                                  setSelectedService(service);
+                                  setShowCancelModal(true);
+                                }}
+                              >
+                                <Power className="w-4 h-4" />
+                              </Button>
+                            )}
+                            
+                            {pendingCancellation && (
+                              <Badge variant="secondary" className="text-xs">
+                                <Clock className="w-3 h-3 mr-1" />
+                                Disattivazione Richiesta
+                              </Badge>
                             )}
                           </div>
-                          
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Ultimo controllo: {formatLastCheck(service.last_check_at)}
-                          </p>
-                          
-                          {service.last_error && !service.is_online && (
-                            <p className="text-xs text-red-500 mt-1">
-                              Errore: {service.last_error}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Cancellation section */}
-                      <div className="pt-3 border-t">
-                        {pendingCancellation ? (
-                          <div className="flex items-center gap-2 text-amber-600 text-sm">
-                            <AlertTriangle className="w-4 h-4" />
-                            <span>Richiesta di disattivazione in attesa</span>
-                          </div>
-                        ) : service.status === "active" || service.status === "expiring_soon" ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                            onClick={() => openCancelModal(service)}
-                          >
-                            <Power className="w-4 h-4 mr-2" />
-                            Richiedi Disattivazione
-                          </Button>
-                        ) : null}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Pending Payments Section */}
-        {clientData && (
-          <PendingPayments clientId={clientData.id} onPaymentComplete={fetchClientData} />
-        )}
+            {/* Pending Payments Section */}
+            {clientData && (
+              <PendingPayments clientId={clientData.id} onPaymentComplete={fetchClientData} />
+            )}
+          </TabsContent>
 
-        {/* Maintenance History Section */}
-        {clientData && (
-          <MaintenanceHistory clientId={clientData.id} />
-        )}
+          {/* Analytics Tab */}
+          <TabsContent value="analytics">
+            {clientData && (
+              <AnalyticsDashboard clientId={clientData.id} />
+            )}
+          </TabsContent>
+
+          {/* Maintenance Tab */}
+          <TabsContent value="maintenance">
+            {clientData && (
+              <MaintenanceHistory clientId={clientData.id} />
+            )}
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Change Password Modal */}
