@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -18,12 +18,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Save, X, Server, Globe, HardDrive, Activity } from "lucide-react";
+import { Plus, Save, X, Server, Globe, HardDrive, Activity, Pencil } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type ServiceType = Database["public"]["Enums"]["service_type"];
 type BillingCycle = Database["public"]["Enums"]["billing_cycle"];
 type ServiceStatus = Database["public"]["Enums"]["service_status"];
+
+export interface EditableService {
+  id: string;
+  service_type: ServiceType;
+  service_name: string;
+  description: string | null;
+  server_name: string | null;
+  domain_name: string | null;
+  url_to_monitor?: string | null;
+  expiration_date: string | null;
+  billing_cycle: BillingCycle;
+  status: ServiceStatus;
+  price: number | null;
+  notes: string | null;
+}
 
 interface AddServiceModalProps {
   open: boolean;
@@ -31,6 +46,8 @@ interface AddServiceModalProps {
   clientId: string;
   clientName: string;
   onSuccess: () => void;
+  /** Se presente, il modale funziona in modalita modifica */
+  service?: EditableService | null;
 }
 
 const serviceTypeLabels: Record<ServiceType, string> = {
@@ -60,16 +77,7 @@ const statusLabels: Record<ServiceStatus, string> = {
   cancelled: "Cancellato",
 };
 
-export const AddServiceModal = ({
-  open,
-  onOpenChange,
-  clientId,
-  clientName,
-  onSuccess,
-}: AddServiceModalProps) => {
-  const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
+const emptyForm = {
     service_type: "website" as ServiceType,
     service_name: "",
     description: "",
@@ -81,7 +89,41 @@ export const AddServiceModal = ({
     status: "active" as ServiceStatus,
     price: "",
     notes: "",
-  });
+  };
+
+export const AddServiceModal = ({
+  open,
+  onOpenChange,
+  clientId,
+  clientName,
+  onSuccess,
+  service = null,
+}: AddServiceModalProps) => {
+  const isEditMode = !!service;
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState(emptyForm);
+
+  useEffect(() => {
+    if (!open) return;
+    if (service) {
+      setFormData({
+        service_type: service.service_type,
+        service_name: service.service_name,
+        description: service.description ?? "",
+        server_name: service.server_name ?? "",
+        domain_name: service.domain_name ?? "",
+        url_to_monitor: service.url_to_monitor ?? "",
+        expiration_date: service.expiration_date ?? "",
+        billing_cycle: service.billing_cycle,
+        status: service.status,
+        price: service.price !== null && service.price !== undefined ? String(service.price) : "",
+        notes: service.notes ?? "",
+      });
+    } else {
+      setFormData(emptyForm);
+    }
+  }, [open, service]);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -92,8 +134,7 @@ export const AddServiceModal = ({
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.from("client_services").insert({
-        client_id: clientId,
+      const payload = {
         service_type: formData.service_type,
         service_name: formData.service_name,
         description: formData.description || null,
@@ -105,36 +146,31 @@ export const AddServiceModal = ({
         status: formData.status,
         price: formData.price ? parseFloat(formData.price) : null,
         notes: formData.notes || null,
-      });
+      };
+
+      const { error } = isEditMode
+        ? await supabase.from("client_services").update(payload).eq("id", service!.id)
+        : await supabase.from("client_services").insert({ client_id: clientId, ...payload });
 
       if (error) throw error;
 
       toast({
-        title: "Servizio aggiunto",
-        description: "Il servizio è stato aggiunto con successo",
+        title: isEditMode ? "Servizio aggiornato" : "Servizio aggiunto",
+        description: isEditMode
+          ? "Le modifiche sono state salvate"
+          : "Il servizio è stato aggiunto con successo",
       });
 
       onSuccess();
       onOpenChange(false);
-      // Reset form
-      setFormData({
-        service_type: "website",
-        service_name: "",
-        description: "",
-        server_name: "",
-        domain_name: "",
-        url_to_monitor: "",
-        expiration_date: "",
-        billing_cycle: "yearly",
-        status: "active",
-        price: "",
-        notes: "",
-      });
+      if (!isEditMode) setFormData(emptyForm);
     } catch (error) {
-      console.error("Error adding service:", error);
+      console.error("Error saving service:", error);
       toast({
         title: "Errore",
-        description: "Impossibile aggiungere il servizio",
+        description: isEditMode
+          ? "Impossibile aggiornare il servizio"
+          : "Impossibile aggiungere il servizio",
         variant: "destructive",
       });
     } finally {
@@ -152,8 +188,8 @@ export const AddServiceModal = ({
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Plus className="w-5 h-5" />
-            Aggiungi Servizio - {clientName}
+            {isEditMode ? <Pencil className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+            {isEditMode ? "Modifica Servizio" : "Aggiungi Servizio"} - {clientName}
           </DialogTitle>
         </DialogHeader>
 
@@ -336,7 +372,7 @@ export const AddServiceModal = ({
             </Button>
             <Button type="submit" disabled={isLoading}>
               <Save className="w-4 h-4" />
-              {isLoading ? "Salvataggio..." : "Aggiungi Servizio"}
+              {isLoading ? "Salvataggio..." : isEditMode ? "Salva Modifiche" : "Aggiungi Servizio"}
             </Button>
           </div>
         </form>
