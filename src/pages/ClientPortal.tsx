@@ -810,7 +810,22 @@ export default function ClientPortal() {
                             </TableCell>
                             <TableCell className="hidden md:table-cell text-sm">
                               {formatDate(service.expiration_date)}
+                              {service.expiration_date && service.status === "active" && (
+                                <p className="text-xs text-muted-foreground">
+                                  {(() => {
+                                    const d = daysUntilExpiration(service);
+                                    const start = new Date(service.expiration_date);
+                                    start.setDate(start.getDate() - 30);
+                                    if (d === null) return null;
+                                    if (d < 0) return "Scaduto";
+                                    return d <= 30
+                                      ? `Rinnovo fra ${d} ${d === 1 ? "giorno" : "giorni"} · disdetta disponibile ora`
+                                      : `Rinnovo automatico · disdetta dal ${formatDate(start.toISOString())}`;
+                                  })()}
+                                </p>
+                              )}
                             </TableCell>
+
                             <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                               {billingCycleLabels[service.billing_cycle]}
                             </TableCell>
