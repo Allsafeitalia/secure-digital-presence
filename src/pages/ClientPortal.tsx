@@ -9,6 +9,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -398,7 +407,39 @@ export default function ClientPortal() {
     return formatDate(service.expiration_date);
   };
 
+  const daysUntilExpiration = (service: ClientService) => {
+    if (!service.expiration_date) return null;
+    const expDate = new Date(service.expiration_date);
+    const now = new Date();
+    return Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  // La disdetta è consentita solo nell'ultimo mese prima della scadenza
+  const canRequestCancellation = (service: ClientService) => {
+    if (service.status !== "active" && service.status !== "expiring_soon") return false;
+    if (hasPendingCancellation(service.id)) return false;
+    const days = daysUntilExpiration(service);
+    if (days === null) return false;
+    return days > 0 && days <= 30;
+  };
+
+  const expiringServices = services
+    .filter((s) => {
+      const days = daysUntilExpiration(s);
+      return (
+        days !== null &&
+        days > 0 &&
+        days <= 60 &&
+        (s.status === "active" || s.status === "expiring_soon")
+      );
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.expiration_date!).getTime() - new Date(b.expiration_date!).getTime()
+    );
+
   const activeServices = services.filter(s => s.status === "active" || s.status === "expiring_soon");
+
   const onlineServices = services.filter(s => s.is_online === true);
   const offlineServices = services.filter(s => s.is_online === false && s.url_to_monitor);
 
@@ -613,10 +654,64 @@ export default function ClientPortal() {
               </Card>
             </div>
 
-            {/* Services Grid */}
+            {/* Prossime scadenze */}
+            {expiringServices.length > 0 && (
+              <Card className="border-amber-300 bg-amber-50/60">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2 text-amber-900">
+                    <AlertTriangle className="w-5 h-5" />
+                    Servizi in scadenza nei prossimi 60 giorni
+                  </CardTitle>
+                  <CardDescription className="text-amber-800">
+                    Puoi richiedere la disattivazione solo nell'ultimo mese prima della scadenza.
+                    Superata la scadenza, il servizio viene rinnovato e potrai disdirlo nel mese
+                    precedente al rinnovo successivo.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {expiringServices.map((service) => {
+                    const days = daysUntilExpiration(service)!;
+                    return (
+                      <div
+                        key={service.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-background p-3 text-sm"
+                      >
+                        <div>
+                          <p className="font-medium">{service.service_name}</p>
+                          <p className="text-muted-foreground">
+                            Scadenza {formatDate(service.expiration_date)} · fra {days}{" "}
+                            {days === 1 ? "giorno" : "giorni"}
+                          </p>
+                        </div>
+                        {hasPendingCancellation(service.id) ? (
+                          <Badge variant="secondary">
+                            <Clock className="w-3 h-3 mr-1" />
+                            Disattivazione richiesta
+                          </Badge>
+                        ) : canRequestCancellation(service) ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive"
+                            onClick={() => openCancelModal(service)}
+                          >
+                            <Power className="w-4 h-4 mr-1" />
+                            Disattiva
+                          </Button>
+                        ) : (
+                          <Badge variant="outline">Disdetta non ancora disponibile</Badge>
+                        )}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Services Table */}
             <div>
               <h2 className="text-xl font-semibold mb-4">I Tuoi Servizi</h2>
-              
+
               {services.length === 0 ? (
                 <Card>
                   <CardContent className="py-12 text-center text-muted-foreground">
@@ -625,146 +720,105 @@ export default function ClientPortal() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {services.map((service) => {
-                    const config = serviceTypeConfig[service.service_type];
-                    const Icon = config.icon;
-                    const statusConf = statusConfig[service.status];
-                    const pendingCancellation = hasPendingCancellation(service.id);
+                <Card className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Servizio</TableHead>
+                        <TableHead className="hidden md:table-cell">Tipo</TableHead>
+                        <TableHead>Stato</TableHead>
+                        <TableHead className="hidden lg:table-cell">Dominio / Server</TableHead>
+                        <TableHead className="hidden md:table-cell">Monitoraggio</TableHead>
+                        <TableHead className="hidden md:table-cell">Scadenza</TableHead>
+                        <TableHead className="hidden lg:table-cell">Ciclo</TableHead>
+                        <TableHead className="text-right">Prezzo</TableHead>
+                        <TableHead className="text-right">Azioni</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {services.map((service) => {
+                        const config = serviceTypeConfig[service.service_type];
+                        const statusConf = statusConfig[service.status];
+                        const pendingCancellation = hasPendingCancellation(service.id);
+                        const cancellable = canRequestCancellation(service);
 
-                    return (
-                      <Card key={service.id} className="relative overflow-hidden">
-                        <div className={`absolute top-0 left-0 w-1 h-full ${config.color}`} />
-                        
-                        <CardHeader className="pb-2">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className={`p-2 rounded-lg ${config.color}/10`}>
-                                <Icon className={`w-5 h-5`} style={{ color: config.color.replace("bg-", "") }} />
+                        return (
+                          <TableRow key={service.id}>
+                            <TableCell className="font-medium">
+                              <div className="max-w-[200px] truncate">{service.service_name}</div>
+                              {service.description && (
+                                <p className="text-xs text-muted-foreground max-w-[200px] truncate">
+                                  {service.description}
+                                </p>
+                              )}
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              <Badge variant="outline">{config.label}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={statusConf.variant}>{statusConf.label}</Badge>
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                              <div className="max-w-[180px] truncate">
+                                {service.domain_name || service.server_name || "-"}
                               </div>
-                              <div>
-                                <CardTitle className="text-base">{service.service_name}</CardTitle>
-                                <CardDescription>{config.label}</CardDescription>
-                              </div>
-                            </div>
-                            <Badge variant={statusConf.variant}>{statusConf.label}</Badge>
-                          </div>
-                        </CardHeader>
-
-                        <CardContent className="space-y-3">
-                          {service.description && (
-                            <p className="text-sm text-muted-foreground">{service.description}</p>
-                          )}
-
-                          {/* Price and billing */}
-                          <div className="flex items-center justify-between text-sm bg-muted/50 rounded-lg p-2">
-                            <div className="flex items-center gap-2">
-                              <Euro className="w-4 h-4 text-primary" />
-                              <span className="font-medium">{formatPrice(service.price)}</span>
-                            </div>
-                            <span className="text-muted-foreground">
-                              {billingCycleLabels[service.billing_cycle]}
-                            </span>
-                          </div>
-
-                          {service.domain_name && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Globe className="w-4 h-4 text-muted-foreground" />
-                              <span>{service.domain_name}</span>
-                            </div>
-                          )}
-
-                          {service.server_name && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Server className="w-4 h-4 text-muted-foreground" />
-                              <span>{service.server_name}</span>
-                            </div>
-                          )}
-
-                          {/* Monitoring Status */}
-                          {service.url_to_monitor && (
-                            <div className={`flex items-center justify-between text-sm p-2 rounded-lg ${
-                              service.is_online ? "bg-primary/10" : "bg-destructive/10"
-                            }`}>
-                              <div className="flex items-center gap-2">
-                                {service.is_online ? (
-                                  <Wifi className="w-4 h-4 text-primary" />
-                                ) : (
-                                  <WifiOff className="w-4 h-4 text-destructive" />
-                                )}
-                                <span className={service.is_online ? "text-primary" : "text-destructive"}>
-                                  {service.is_online ? "Online" : "Offline"}
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell text-sm">
+                              {!service.url_to_monitor ? (
+                                <span className="text-muted-foreground">-</span>
+                              ) : service.is_online ? (
+                                <span className="inline-flex items-center gap-1 text-primary">
+                                  <Wifi className="w-4 h-4" /> Online
                                 </span>
-                              </div>
-                              {service.last_response_time_ms && service.is_online && (
-                                <span className="text-muted-foreground">
-                                  {service.last_response_time_ms}ms
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-destructive">
+                                  <WifiOff className="w-4 h-4" /> Offline
                                 </span>
                               )}
-                            </div>
-                          )}
-
-                          {service.last_check_at && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <Clock className="w-3 h-3" />
-                              <span>Ultimo controllo: {formatLastCheck(service.last_check_at)}</span>
-                            </div>
-                          )}
-
-                          {service.expiration_date && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <Calendar className="w-4 h-4 text-muted-foreground" />
-                              <span>Scadenza: {formatDate(service.expiration_date)}</span>
-                            </div>
-                          )}
-
-                          {/* Auto Renew Badge */}
-                          <div className="flex items-center justify-between pt-2 border-t">
-                            <div className="flex items-center gap-2">
-                              <Badge variant={service.auto_renew ? "default" : "outline"} className="text-xs">
-                                {service.auto_renew ? (
-                                  <>
-                                    <CheckCircle2 className="w-3 h-3 mr-1" />
-                                    Rinnovo Automatico
-                                  </>
-                                ) : (
-                                  <>
-                                    <XCircle className="w-3 h-3 mr-1" />
-                                    Rinnovo Manuale
-                                  </>
-                                )}
-                              </Badge>
-                            </div>
-                            
-                            {/* Cancellation Button */}
-                            {!pendingCancellation && service.status === "active" && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => {
-                                  setSelectedService(service);
-                                  setShowCancelModal(true);
-                                }}
-                              >
-                                <Power className="w-4 h-4" />
-                              </Button>
-                            )}
-                            
-                            {pendingCancellation && (
-                              <Badge variant="secondary" className="text-xs">
-                                <Clock className="w-3 h-3 mr-1" />
-                                Disattivazione Richiesta
-                              </Badge>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+                            </TableCell>
+                            <TableCell className="hidden md:table-cell text-sm">
+                              {formatDate(service.expiration_date)}
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                              {billingCycleLabels[service.billing_cycle]}
+                            </TableCell>
+                            <TableCell className="text-right text-sm">
+                              {formatPrice(service.price)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {pendingCancellation ? (
+                                <Badge variant="secondary">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  Richiesta inviata
+                                </Badge>
+                              ) : cancellable ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => openCancelModal(service)}
+                                  title="Richiedi disattivazione"
+                                >
+                                  <Power className="w-4 h-4" />
+                                </Button>
+                              ) : (
+                                <span
+                                  className="text-xs text-muted-foreground"
+                                  title="La disdetta è possibile solo nell'ultimo mese prima della scadenza"
+                                >
+                                  —
+                                </span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </Card>
               )}
             </div>
+
 
             {/* Pending Payments Section */}
             {clientData && (
@@ -855,7 +909,7 @@ export default function ClientPortal() {
           <div className="space-y-4 py-4">
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
               <p className="font-medium mb-1">Nota:</p>
-              <p>I servizi sono impostati per il rinnovo automatico. Una volta elaborata la tua richiesta, il servizio non verrà rinnovato alla prossima scadenza.</p>
+              <p>La disdetta è possibile solo nell'ultimo mese prima della scadenza. Una volta elaborata la richiesta, il servizio non verrà rinnovato alla prossima scadenza; dopo il rinnovo potrai disdirlo di nuovo solo nel mese precedente alla scadenza successiva.</p>
             </div>
 
             <div className="space-y-2">
