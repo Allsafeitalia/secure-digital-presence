@@ -499,10 +499,14 @@ export default function ClientPortal() {
 
       <main className="max-w-6xl mx-auto px-6 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto lg:inline-flex">
             <TabsTrigger value="overview" className="gap-2">
               <Package className="h-4 w-4" />
               Panoramica
+            </TabsTrigger>
+            <TabsTrigger value="invoices" className="gap-2">
+              <Receipt className="h-4 w-4" />
+              Fatture
             </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2">
               <BarChart3 className="h-4 w-4" />
@@ -513,6 +517,7 @@ export default function ClientPortal() {
               Manutenzioni
             </TabsTrigger>
           </TabsList>
+
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-8">
