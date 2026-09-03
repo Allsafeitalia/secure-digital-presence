@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calculator, Euro, Receipt, Wrench, Package, TrendingUp } from "lucide-react";
+import { Calculator, Euro, Receipt, Wrench, Package } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
