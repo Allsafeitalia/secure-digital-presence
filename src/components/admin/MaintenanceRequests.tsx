@@ -237,7 +237,7 @@ export const MaintenanceRequests = () => {
 
     const { error } = await supabase
       .from("maintenance_requests")
-      .update(updateData)
+      .update(updateData as never)
       .eq("id", selectedRequest.id);
 
     if (error) {
