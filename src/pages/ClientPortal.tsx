@@ -449,9 +449,9 @@ export default function ClientPortal() {
 
   const activeServices = services.filter(s => s.status === "active" || s.status === "expiring_soon");
 
-  const isServiceOnline = (s: Service) =>
+  const isServiceOnline = (s: ClientService) =>
     (s.status === "active" || s.status === "expiring_soon") && s.is_online === true;
-  const isServiceOffline = (s: Service) =>
+  const isServiceOffline = (s: ClientService) =>
     s.status === "suspended" || (s.is_online === false && !!s.url_to_monitor);
   const onlineServices = services.filter(isServiceOnline);
   const offlineServices = services.filter(isServiceOffline);
@@ -792,7 +792,11 @@ export default function ClientPortal() {
                               </div>
                             </TableCell>
                             <TableCell className="hidden md:table-cell text-sm">
-                              {!service.url_to_monitor ? (
+                              {service.status === "suspended" ? (
+                                <span className="inline-flex items-center gap-1 text-destructive">
+                                  <WifiOff className="w-4 h-4" /> Offline
+                                </span>
+                              ) : !service.url_to_monitor ? (
                                 <span className="text-muted-foreground">-</span>
                               ) : service.is_online ? (
                                 <span className="inline-flex items-center gap-1 text-primary">
