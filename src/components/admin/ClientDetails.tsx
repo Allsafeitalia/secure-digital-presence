@@ -732,6 +732,51 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
                       {service.price ? `€ ${service.price.toFixed(2)}` : "-"}
                     </TableCell>
                     <TableCell>
+                      <div className="flex flex-col items-start gap-1">
+                        <div className="flex flex-wrap gap-1">
+                          <Badge
+                            variant="outline"
+                            className={
+                              service.invoice_sent
+                                ? "bg-blue-500/10 text-blue-600 border-blue-500/20 text-[10px] md:text-xs"
+                                : "bg-amber-500/10 text-amber-700 border-amber-500/20 text-[10px] md:text-xs"
+                            }
+                          >
+                            {service.invoice_sent ? "Fattura inviata" : "Fattura da inviare"}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className={
+                              service.payment_status === "paid"
+                                ? "bg-green-500/10 text-green-600 border-green-500/20 text-[10px] md:text-xs"
+                                : "bg-red-500/10 text-red-600 border-red-500/20 text-[10px] md:text-xs"
+                            }
+                          >
+                            {service.payment_status === "paid" ? "Pagato" : "Da pagare"}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-[11px]"
+                            onClick={() => toggleInvoiceSent(service)}
+                          >
+                            {service.invoice_sent ? "Segna non inviata" : "Segna inviata"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-[11px]"
+                            onClick={() => toggleServicePaid(service)}
+                          >
+                            {service.payment_status === "paid" ? "Segna da pagare" : "Segna pagato"}
+                          </Button>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+
                       <div className="flex items-center justify-end gap-1">
                         <Switch
                           checked={service.status === "active"}
