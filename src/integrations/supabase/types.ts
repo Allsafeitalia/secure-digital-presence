@@ -723,6 +723,10 @@ export type Database = {
     }
     Functions: {
       cleanup_expired_verification_codes: { Args: never; Returns: undefined }
+      client_ensure_order_number: {
+        Args: { p_item_id: string; p_item_type: string }
+        Returns: string
+      }
       client_set_payment_method: {
         Args: { p_item_id: string; p_item_type: string; p_method: string }
         Returns: undefined

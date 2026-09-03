@@ -57,6 +57,8 @@ import { MaintenanceHistory } from "@/components/client/MaintenanceHistory";
 import { PendingPayments } from "@/components/client/PendingPayments";
 import { AnalyticsDashboard } from "@/components/client/AnalyticsDashboard";
 import { ClientInvoicesList } from "@/components/client/ClientInvoicesList";
+import { ServicePaymentDialog } from "@/components/client/ServicePaymentDialog";
+
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
 type ServiceType = "website" | "domain" | "hosting" | "backup" | "email" | "ssl" | "maintenance" | "other";
@@ -80,6 +82,8 @@ interface ClientService {
   last_error: string | null;
   price: number | null;
   auto_renew: boolean;
+  order_number: string | null;
+
 }
 
 interface CancellationRequest {
@@ -143,6 +147,11 @@ export default function ClientPortal() {
   const [selectedService, setSelectedService] = useState<ClientService | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
+
+  // Payment dialog state
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [payService, setPayService] = useState<ClientService | null>(null);
+
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -683,25 +692,40 @@ export default function ClientPortal() {
                             {days === 1 ? "giorno" : "giorni"}
                           </p>
                         </div>
-                        {hasPendingCancellation(service.id) ? (
-                          <Badge variant="secondary">
-                            <Clock className="w-3 h-3 mr-1" />
-                            Disattivazione richiesta
-                          </Badge>
-                        ) : canRequestCancellation(service) ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-destructive"
-                            onClick={() => openCancelModal(service)}
-                          >
-                            <Power className="w-4 h-4 mr-1" />
-                            Disattiva
-                          </Button>
-                        ) : (
-                          <Badge variant="outline">Disdetta non ancora disponibile</Badge>
-                        )}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {service.price ? (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setPayService(service);
+                                setShowPaymentDialog(true);
+                              }}
+                            >
+                              <Euro className="w-4 h-4 mr-1" />
+                              Paga {formatPrice(service.price)}
+                            </Button>
+                          ) : null}
+                          {hasPendingCancellation(service.id) ? (
+                            <Badge variant="secondary">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Disattivazione richiesta
+                            </Badge>
+                          ) : canRequestCancellation(service) ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive"
+                              onClick={() => openCancelModal(service)}
+                            >
+                              <Power className="w-4 h-4 mr-1" />
+                              Disattiva
+                            </Button>
+                          ) : (
+                            <Badge variant="outline">Disdetta non ancora disponibile</Badge>
+                          )}
+                        </div>
                       </div>
+
                     );
                   })}
                 </CardContent>
@@ -943,6 +967,18 @@ export default function ClientPortal() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Payment Dialog */}
+      <ServicePaymentDialog
+        open={showPaymentDialog}
+        onOpenChange={setShowPaymentDialog}
+        itemType="service"
+        itemId={payService?.id ?? null}
+        itemName={payService?.service_name ?? ""}
+        amount={payService?.price ?? null}
+        orderNumber={payService?.order_number ?? null}
+        onCompleted={fetchClientData}
+      />
     </div>
   );
 }
