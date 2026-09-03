@@ -80,6 +80,8 @@ interface ClientService {
   last_error: string | null;
   price: number | null;
   auto_renew: boolean;
+  order_number: string | null;
+
 }
 
 interface CancellationRequest {
