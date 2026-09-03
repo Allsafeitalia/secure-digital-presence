@@ -31,6 +31,7 @@ import {
   Package,
   AlertCircle,
   Loader2,
+  Wallet,
 } from "lucide-react";
 
 type ServiceType = "website" | "domain" | "hosting" | "backup" | "email" | "ssl" | "maintenance" | "other";
@@ -63,6 +64,8 @@ interface PendingMaintenance {
 
 type PendingItem = PendingService | PendingMaintenance;
 
+type PaymentMethod = "card" | "paypal" | "bank_transfer";
+
 interface PendingPaymentsProps {
   clientId: string;
   onPaymentComplete?: () => void;
@@ -86,6 +89,8 @@ const requestTypeLabels: Record<string, string> = {
   bug_fix: "Bug Fix",
 };
 
+const PAYPAL_ME = "https://www.paypal.com/paypalme/allsafeitalia";
+
 const BANK_DETAILS = {
   recipient: "Dotcom di Giuseppe Mastronardi",
   iban: "IT26M0306234210000002242244",
@@ -98,7 +103,7 @@ export const PendingPayments = ({ clientId, onPaymentComplete }: PendingPayments
   const [isLoading, setIsLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<PendingItem | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"card" | "bank_transfer">("card");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("paypal");
   const [isProcessing, setIsProcessing] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -129,7 +134,7 @@ export const PendingPayments = ({ clientId, onPaymentComplete }: PendingPayments
         .eq("client_id", clientId)
         .eq("payment_status", "pending")
         .not("cost", "is", null)
-        .in("status", ["resolved", "closed"]);
+        .gt("cost", 0);
 
       if (maintenanceError) throw maintenanceError;
 
@@ -160,7 +165,7 @@ export const PendingPayments = ({ clientId, onPaymentComplete }: PendingPayments
 
   const handlePayClick = (item: PendingItem) => {
     setSelectedItem(item);
-    setPaymentMethod("card");
+    setPaymentMethod("paypal");
     setShowPaymentModal(true);
   };
 
@@ -194,23 +199,27 @@ export const PendingPayments = ({ clientId, onPaymentComplete }: PendingPayments
           window.open(data.url, "_blank");
         }
       } else {
-        // Bank transfer - update payment method
-        const table = selectedItem.type === "service" ? "client_services" : "maintenance_requests";
-        
-        const { error } = await supabase
-          .from(table)
-          .update({
-            payment_method: "bank_transfer",
-            payment_notes: `Bonifico in attesa di verifica - Ordine: ${selectedItem.order_number}`,
-          })
-          .eq("id", selectedItem.id);
+        const { error } = await supabase.rpc("client_set_payment_method", {
+          p_item_type: selectedItem.type,
+          p_item_id: selectedItem.id,
+          p_method: paymentMethod,
+        });
 
         if (error) throw error;
 
-        toast({
-          title: "Bonifico registrato",
-          description: "Una volta verificato il pagamento, lo stato verrà aggiornato",
-        });
+        if (paymentMethod === "paypal") {
+          const amount = getItemPrice(selectedItem) ?? 0;
+          window.open(`${PAYPAL_ME}/${amount.toFixed(2)}EUR`, "_blank");
+          toast({
+            title: "Pagamento PayPal avviato",
+            description: "Inserisci come nota il numero ordine. Confermeremo il pagamento dopo la verifica.",
+          });
+        } else {
+          toast({
+            title: "Bonifico registrato",
+            description: "Una volta verificato il pagamento, lo stato verrà aggiornato",
+          });
+        }
       }
 
       setShowPaymentModal(false);
@@ -329,10 +338,10 @@ export const PendingPayments = ({ clientId, onPaymentComplete }: PendingPayments
                           Servizio: {(item as PendingMaintenance).service_name}
                         </p>
                       )}
-                      {item.payment_method === "bank_transfer" && (
+                      {(item.payment_method === "bank_transfer" || item.payment_method === "paypal") && (
                         <Badge variant="secondary" className="mt-1 text-xs">
                           <Clock className="w-3 h-3 mr-1" />
-                          Bonifico in verifica
+                          {item.payment_method === "paypal" ? "PayPal in verifica" : "Bonifico in verifica"}
                         </Badge>
                       )}
                     </div>
@@ -341,7 +350,7 @@ export const PendingPayments = ({ clientId, onPaymentComplete }: PendingPayments
                     <span className="text-lg font-bold text-primary">
                       {formatPrice(getItemPrice(item))}
                     </span>
-                    {item.payment_method !== "bank_transfer" && (
+                    {(
                       <Button size="sm" onClick={() => handlePayClick(item)}>
                         <Euro className="w-4 h-4 mr-1" />
                         Paga
@@ -383,7 +392,7 @@ export const PendingPayments = ({ clientId, onPaymentComplete }: PendingPayments
               </p>
             </div>
 
-            <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "card" | "bank_transfer")}>
+            <RadioGroup value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
               <div className="space-y-3">
                 <div 
                   className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${
@@ -399,6 +408,24 @@ export const PendingPayments = ({ clientId, onPaymentComplete }: PendingPayments
                     </Label>
                     <p className="text-sm text-muted-foreground mt-1">
                       Pagamento sicuro tramite Stripe. Accettiamo Visa, Mastercard, American Express.
+                    </p>
+                  </div>
+                </div>
+
+                <div 
+                  className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                    paymentMethod === "paypal" ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground"
+                  }`}
+                  onClick={() => setPaymentMethod("paypal")}
+                >
+                  <RadioGroupItem value="paypal" id="paypal" className="mt-1" />
+                  <div className="flex-1">
+                    <Label htmlFor="paypal" className="flex items-center gap-2 cursor-pointer font-medium">
+                      <Wallet className="w-5 h-5 text-sky-600" />
+                      PayPal
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Paghi tramite PayPal.me con l'importo già precompilato.
                     </p>
                   </div>
                 </div>
@@ -422,6 +449,25 @@ export const PendingPayments = ({ clientId, onPaymentComplete }: PendingPayments
                 </div>
               </div>
             </RadioGroup>
+
+            {paymentMethod === "paypal" && (
+              <div className="p-4 bg-sky-50 border border-sky-200 rounded-lg space-y-2">
+                <h4 className="font-medium text-sky-900 flex items-center gap-2">
+                  <Wallet className="w-4 h-4" />
+                  Pagamento con PayPal
+                </h4>
+                <p className="text-sm text-sky-900">
+                  Verrai reindirizzato a PayPal.me con l'importo precompilato. Inserisci nella nota il numero ordine
+                  {selectedItem?.order_number ? ` ${selectedItem.order_number}` : ""}.
+                </p>
+                <div className="flex items-center justify-between p-2 bg-white rounded border">
+                  <p className="text-sky-900 font-mono text-xs sm:text-sm break-all">{PAYPAL_ME}</p>
+                  <Button variant="ghost" size="sm" onClick={() => copyToClipboard(PAYPAL_ME, "Link PayPal")}>
+                    {copiedField === "Link PayPal" ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {paymentMethod === "bank_transfer" && (
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg space-y-3">
@@ -499,7 +545,7 @@ export const PendingPayments = ({ clientId, onPaymentComplete }: PendingPayments
             </Button>
             <Button onClick={handleConfirmPayment} disabled={isProcessing}>
               {isProcessing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {paymentMethod === "card" ? "Procedi al Pagamento" : "Conferma Bonifico"}
+              {paymentMethod === "card" ? "Procedi al Pagamento" : paymentMethod === "paypal" ? "Paga con PayPal" : "Conferma Bonifico"}
             </Button>
           </DialogFooter>
         </DialogContent>

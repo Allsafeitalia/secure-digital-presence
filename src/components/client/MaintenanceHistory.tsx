@@ -28,6 +28,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { NewTicketDialog } from "@/components/client/NewTicketDialog";
 
 interface MaintenanceRequest {
   id: string;
@@ -184,16 +185,19 @@ export function MaintenanceHistory({ clientId }: MaintenanceHistoryProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-indigo-500/10">
-          <Wrench className="w-6 h-6 text-indigo-500" />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-indigo-500/10">
+            <Wrench className="w-6 h-6 text-indigo-500" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold">Storico Manutenzioni e Assistenza</h2>
+            <p className="text-sm text-muted-foreground">
+              Monitora gli interventi, apri un ticket e paga con PayPal o bonifico
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-xl font-semibold">Storico Manutenzioni e Assistenza</h2>
-          <p className="text-sm text-muted-foreground">
-            Monitora gli interventi e valuta le spese
-          </p>
-        </div>
+        <NewTicketDialog clientId={clientId} onCreated={fetchMaintenanceRequests} />
       </div>
 
       {/* Stats Cards */}
@@ -309,7 +313,8 @@ export function MaintenanceHistory({ clientId }: MaintenanceHistoryProps) {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <Wrench className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Nessun intervento di manutenzione o assistenza</p>
+            <p className="mb-4">Nessun intervento di manutenzione o assistenza</p>
+            <NewTicketDialog clientId={clientId} onCreated={fetchMaintenanceRequests} />
           </CardContent>
         </Card>
       ) : (
