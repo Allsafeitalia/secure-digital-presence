@@ -441,7 +441,10 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
     }
   };
 
+  const toInvoice = services.filter((s) => s.payment_status !== "paid" && !s.invoice_sent);
+
   const fullAddress = [
+
     client.address,
     client.city,
     client.province,
