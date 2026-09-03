@@ -184,7 +184,7 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
         variant: "destructive",
       });
     } else {
-      setServices(data as ClientService[]);
+      setServices(sortServices(data as ClientService[]));
     }
     setIsLoading(false);
   };
