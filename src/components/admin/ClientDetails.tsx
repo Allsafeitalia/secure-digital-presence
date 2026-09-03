@@ -90,6 +90,10 @@ interface ClientService {
   price: number | null;
   notes: string | null;
   created_at: string;
+  payment_status?: string | null;
+  order_number?: string | null;
+  invoice_sent?: boolean | null;
+  invoice_sent_at?: string | null;
 }
 
 interface ClientDetailsProps {
