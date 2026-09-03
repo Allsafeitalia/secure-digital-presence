@@ -637,6 +637,25 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
           </Button>
         </div>
 
+        {toInvoice.length > 0 && (
+          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 md:p-4">
+            <p className="font-medium text-amber-900 text-sm md:text-base flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Fatture da inviare ({toInvoice.length})
+            </p>
+            <ul className="mt-2 space-y-1 text-sm text-amber-900">
+              {toInvoice.map((s) => (
+                <li key={s.id}>
+                  {s.service_name}
+                  {s.price ? ` — € ${Number(s.price).toFixed(2)}` : ""}
+                  {s.order_number ? ` · Ordine ${s.order_number}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+
         {isLoading ? (
           <div className="text-center py-6 md:py-8 text-muted-foreground text-sm md:text-base">
             Caricamento servizi...
