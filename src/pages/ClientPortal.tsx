@@ -967,6 +967,18 @@ export default function ClientPortal() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Payment Dialog */}
+      <ServicePaymentDialog
+        open={showPaymentDialog}
+        onOpenChange={setShowPaymentDialog}
+        itemType="service"
+        itemId={payService?.id ?? null}
+        itemName={payService?.service_name ?? ""}
+        amount={payService?.price ?? null}
+        orderNumber={payService?.order_number ?? null}
+        onCompleted={fetchClientData}
+      />
     </div>
   );
 }
