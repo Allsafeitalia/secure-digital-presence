@@ -42,10 +42,12 @@ import {
   AlertTriangle,
   Power,
   BarChart3,
+  Receipt,
 } from "lucide-react";
 import { MaintenanceHistory } from "@/components/client/MaintenanceHistory";
 import { PendingPayments } from "@/components/client/PendingPayments";
 import { AnalyticsDashboard } from "@/components/client/AnalyticsDashboard";
+import { ClientInvoicesList } from "@/components/client/ClientInvoicesList";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
 type ServiceType = "website" | "domain" | "hosting" | "backup" | "email" | "ssl" | "maintenance" | "other";
@@ -497,10 +499,14 @@ export default function ClientPortal() {
 
       <main className="max-w-6xl mx-auto px-6 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto lg:inline-flex">
             <TabsTrigger value="overview" className="gap-2">
               <Package className="h-4 w-4" />
               Panoramica
+            </TabsTrigger>
+            <TabsTrigger value="invoices" className="gap-2">
+              <Receipt className="h-4 w-4" />
+              Fatture
             </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2">
               <BarChart3 className="h-4 w-4" />
@@ -511,6 +517,7 @@ export default function ClientPortal() {
               Manutenzioni
             </TabsTrigger>
           </TabsList>
+
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-8">
@@ -778,6 +785,12 @@ export default function ClientPortal() {
               <MaintenanceHistory clientId={clientData.id} />
             )}
           </TabsContent>
+
+          {/* Invoices Tab */}
+          <TabsContent value="invoices">
+            {clientData && <ClientInvoicesList clientId={clientData.id} />}
+          </TabsContent>
+
         </Tabs>
       </main>
 

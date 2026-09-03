@@ -424,6 +424,72 @@ export type Database = {
         }
         Relationships: []
       }
+      invoices: {
+        Row: {
+          client_id: string
+          created_at: string
+          description: string | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          net_amount: number | null
+          notes: string | null
+          payment_date: string | null
+          payment_method: string | null
+          payment_status: string
+          service_id: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number: string
+          net_amount?: number | null
+          notes?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          service_id?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          net_amount?: number | null
+          notes?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          payment_status?: string
+          service_id?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "client_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_requests: {
         Row: {
           assigned_to: string | null
