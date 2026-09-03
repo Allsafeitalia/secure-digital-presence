@@ -723,6 +723,10 @@ export type Database = {
     }
     Functions: {
       cleanup_expired_verification_codes: { Args: never; Returns: undefined }
+      client_set_payment_method: {
+        Args: { p_item_id: string; p_item_type: string; p_method: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
