@@ -398,7 +398,39 @@ export default function ClientPortal() {
     return formatDate(service.expiration_date);
   };
 
+  const daysUntilExpiration = (service: ClientService) => {
+    if (!service.expiration_date) return null;
+    const expDate = new Date(service.expiration_date);
+    const now = new Date();
+    return Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  // La disdetta è consentita solo nell'ultimo mese prima della scadenza
+  const canRequestCancellation = (service: ClientService) => {
+    if (service.status !== "active" && service.status !== "expiring_soon") return false;
+    if (hasPendingCancellation(service.id)) return false;
+    const days = daysUntilExpiration(service);
+    if (days === null) return false;
+    return days > 0 && days <= 30;
+  };
+
+  const expiringServices = services
+    .filter((s) => {
+      const days = daysUntilExpiration(s);
+      return (
+        days !== null &&
+        days > 0 &&
+        days <= 60 &&
+        (s.status === "active" || s.status === "expiring_soon")
+      );
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.expiration_date!).getTime() - new Date(b.expiration_date!).getTime()
+    );
+
   const activeServices = services.filter(s => s.status === "active" || s.status === "expiring_soon");
+
   const onlineServices = services.filter(s => s.is_online === true);
   const offlineServices = services.filter(s => s.is_online === false && s.url_to_monitor);
 
