@@ -683,25 +683,40 @@ export default function ClientPortal() {
                             {days === 1 ? "giorno" : "giorni"}
                           </p>
                         </div>
-                        {hasPendingCancellation(service.id) ? (
-                          <Badge variant="secondary">
-                            <Clock className="w-3 h-3 mr-1" />
-                            Disattivazione richiesta
-                          </Badge>
-                        ) : canRequestCancellation(service) ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-destructive"
-                            onClick={() => openCancelModal(service)}
-                          >
-                            <Power className="w-4 h-4 mr-1" />
-                            Disattiva
-                          </Button>
-                        ) : (
-                          <Badge variant="outline">Disdetta non ancora disponibile</Badge>
-                        )}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {service.price ? (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setPayService(service);
+                                setShowPaymentDialog(true);
+                              }}
+                            >
+                              <Euro className="w-4 h-4 mr-1" />
+                              Paga {formatPrice(service.price)}
+                            </Button>
+                          ) : null}
+                          {hasPendingCancellation(service.id) ? (
+                            <Badge variant="secondary">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Disattivazione richiesta
+                            </Badge>
+                          ) : canRequestCancellation(service) ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive"
+                              onClick={() => openCancelModal(service)}
+                            >
+                              <Power className="w-4 h-4 mr-1" />
+                              Disattiva
+                            </Button>
+                          ) : (
+                            <Badge variant="outline">Disdetta non ancora disponibile</Badge>
+                          )}
+                        </div>
                       </div>
+
                     );
                   })}
                 </CardContent>
