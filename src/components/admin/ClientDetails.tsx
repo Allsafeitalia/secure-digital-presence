@@ -153,6 +153,21 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
     fetchServices();
   }, [client.id]);
 
+  const statusOrder: Record<string, number> = {
+    active: 0,
+    expiring_soon: 1,
+    pending: 2,
+    suspended: 3,
+    expired: 4,
+    cancelled: 5,
+  };
+
+  const sortServices = (list: ClientService[]) =>
+    [...list].sort((a, b) => {
+      const diff = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
+      return diff !== 0 ? diff : a.service_name.localeCompare(b.service_name);
+    });
+
   const fetchServices = async () => {
     setIsLoading(true);
     const { data, error } = await supabase

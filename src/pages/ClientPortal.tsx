@@ -214,7 +214,7 @@ export default function ClientPortal() {
 
       if (servicesError) throw servicesError;
 
-      setServices(servicesData || []);
+      setServices(sortServicesByStatus(servicesData || []));
 
       // Fetch cancellation requests
       const { data: cancelRequests, error: cancelError } = await supabase
