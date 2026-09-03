@@ -202,6 +202,8 @@ export type Database = {
           domain_name: string | null
           expiration_date: string | null
           id: string
+          invoice_sent: boolean
+          invoice_sent_at: string | null
           is_online: boolean | null
           last_check_at: string | null
           last_error: string | null
@@ -229,6 +231,8 @@ export type Database = {
           domain_name?: string | null
           expiration_date?: string | null
           id?: string
+          invoice_sent?: boolean
+          invoice_sent_at?: string | null
           is_online?: boolean | null
           last_check_at?: string | null
           last_error?: string | null
@@ -256,6 +260,8 @@ export type Database = {
           domain_name?: string | null
           expiration_date?: string | null
           id?: string
+          invoice_sent?: boolean
+          invoice_sent_at?: string | null
           is_online?: boolean | null
           last_check_at?: string | null
           last_error?: string | null

@@ -90,6 +90,10 @@ interface ClientService {
   price: number | null;
   notes: string | null;
   created_at: string;
+  payment_status?: string | null;
+  order_number?: string | null;
+  invoice_sent?: boolean | null;
+  invoice_sent_at?: string | null;
 }
 
 interface ClientDetailsProps {
@@ -258,6 +262,46 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
     }
   };
 
+  const toggleInvoiceSent = async (service: ClientService) => {
+    const sent = !service.invoice_sent;
+    const { error } = await supabase
+      .from("client_services")
+      .update({ invoice_sent: sent, invoice_sent_at: sent ? new Date().toISOString() : null })
+      .eq("id", service.id);
+
+    if (error) {
+      toast({ title: "Errore", description: "Impossibile aggiornare la fattura", variant: "destructive" });
+      return;
+    }
+    toast({
+      title: sent ? "Fattura segnata come inviata" : "Fattura da inviare",
+      description: service.service_name,
+    });
+    fetchServices();
+  };
+
+  const toggleServicePaid = async (service: ClientService) => {
+    const paid = service.payment_status !== "paid";
+    const { error } = await supabase
+      .from("client_services")
+      .update({
+        payment_status: paid ? "paid" : "pending",
+        payment_date: paid ? new Date().toISOString() : null,
+      })
+      .eq("id", service.id);
+
+    if (error) {
+      toast({ title: "Errore", description: "Impossibile aggiornare il pagamento", variant: "destructive" });
+      return;
+    }
+    toast({
+      title: paid ? "Servizio segnato come pagato" : "Servizio segnato da pagare",
+      description: service.service_name,
+    });
+    fetchServices();
+  };
+
+
   const handleClientUpdate = (updatedClient: Client) => {
     setClient(updatedClient);
     onClientUpdate?.(updatedClient);
@@ -397,7 +441,10 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
     }
   };
 
+  const toInvoice = services.filter((s) => s.payment_status !== "paid" && !s.invoice_sent);
+
   const fullAddress = [
+
     client.address,
     client.city,
     client.province,
@@ -593,6 +640,25 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
           </Button>
         </div>
 
+        {toInvoice.length > 0 && (
+          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 md:p-4">
+            <p className="font-medium text-amber-900 text-sm md:text-base flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Fatture da inviare ({toInvoice.length})
+            </p>
+            <ul className="mt-2 space-y-1 text-sm text-amber-900">
+              {toInvoice.map((s) => (
+                <li key={s.id}>
+                  {s.service_name}
+                  {s.price ? ` — € ${Number(s.price).toFixed(2)}` : ""}
+                  {s.order_number ? ` · Ordine ${s.order_number}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+
         {isLoading ? (
           <div className="text-center py-6 md:py-8 text-muted-foreground text-sm md:text-base">
             Caricamento servizi...
@@ -623,7 +689,9 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
                   <TableHead className="hidden md:table-cell">Scadenza</TableHead>
                   <TableHead className="hidden lg:table-cell">Ciclo</TableHead>
                   <TableHead className="text-right">Prezzo</TableHead>
+                  <TableHead>Fatturazione</TableHead>
                   <TableHead className="text-right">Azioni</TableHead>
+
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -667,6 +735,51 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
                       {service.price ? `€ ${service.price.toFixed(2)}` : "-"}
                     </TableCell>
                     <TableCell>
+                      <div className="flex flex-col items-start gap-1">
+                        <div className="flex flex-wrap gap-1">
+                          <Badge
+                            variant="outline"
+                            className={
+                              service.invoice_sent
+                                ? "bg-blue-500/10 text-blue-600 border-blue-500/20 text-[10px] md:text-xs"
+                                : "bg-amber-500/10 text-amber-700 border-amber-500/20 text-[10px] md:text-xs"
+                            }
+                          >
+                            {service.invoice_sent ? "Fattura inviata" : "Fattura da inviare"}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className={
+                              service.payment_status === "paid"
+                                ? "bg-green-500/10 text-green-600 border-green-500/20 text-[10px] md:text-xs"
+                                : "bg-red-500/10 text-red-600 border-red-500/20 text-[10px] md:text-xs"
+                            }
+                          >
+                            {service.payment_status === "paid" ? "Pagato" : "Da pagare"}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-[11px]"
+                            onClick={() => toggleInvoiceSent(service)}
+                          >
+                            {service.invoice_sent ? "Segna non inviata" : "Segna inviata"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-[11px]"
+                            onClick={() => toggleServicePaid(service)}
+                          >
+                            {service.payment_status === "paid" ? "Segna da pagare" : "Segna pagato"}
+                          </Button>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+
                       <div className="flex items-center justify-end gap-1">
                         <Switch
                           checked={service.status === "active"}
