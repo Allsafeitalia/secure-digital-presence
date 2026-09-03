@@ -39,6 +39,7 @@ import { it } from "date-fns/locale";
 import { AddServiceModal } from "./AddServiceModal";
 import { EditClientModal } from "./EditClientModal";
 import { ClientInvoices } from "./ClientInvoices";
+import { ClientAccounting } from "./ClientAccounting";
 import type { Database } from "@/integrations/supabase/types";
 
 type ServiceType = Database["public"]["Enums"]["service_type"];
@@ -672,6 +673,9 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
           </div>
         )}
       </div>
+
+      {/* Accounting */}
+      <ClientAccounting clientId={client.id} />
 
       {/* Invoices */}
       <ClientInvoices
