@@ -37,6 +37,7 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { AddServiceModal } from "./AddServiceModal";
 import { EditClientModal } from "./EditClientModal";
+import { ClientInvoices } from "./ClientInvoices";
 import type { Database } from "@/integrations/supabase/types";
 
 type ServiceType = Database["public"]["Enums"]["service_type"];

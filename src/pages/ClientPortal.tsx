@@ -42,10 +42,12 @@ import {
   AlertTriangle,
   Power,
   BarChart3,
+  Receipt,
 } from "lucide-react";
 import { MaintenanceHistory } from "@/components/client/MaintenanceHistory";
 import { PendingPayments } from "@/components/client/PendingPayments";
 import { AnalyticsDashboard } from "@/components/client/AnalyticsDashboard";
+import { ClientInvoicesList } from "@/components/client/ClientInvoicesList";
 import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 
 type ServiceType = "website" | "domain" | "hosting" | "backup" | "email" | "ssl" | "maintenance" | "other";
