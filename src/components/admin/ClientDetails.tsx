@@ -588,90 +588,93 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
             </Button>
           </div>
         ) : (
-          <div className="space-y-3 md:space-y-4">
-            {services.map((service) => (
-              <div
-                key={service.id}
-                className={`bg-secondary/30 rounded-xl p-3 md:p-4 flex items-start justify-between gap-2 md:gap-4 ${service.status === 'suspended' || service.status === 'cancelled' ? 'opacity-60' : ''}`}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5 md:gap-3 mb-2">
-                    <span className="font-medium text-sm md:text-base truncate">{service.service_name}</span>
-                    <Badge variant="outline" className="text-[10px] md:text-xs">
-                      {serviceTypeLabels[service.service_type]}
-                    </Badge>
-                    <Badge className={`text-[10px] md:text-xs ${statusColors[service.status]}`}>
-                      {statusLabels[service.status]}
-                    </Badge>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-1 md:gap-2 text-xs md:text-sm text-muted-foreground">
-                    {service.domain_name && (
-                      <div className="flex items-center gap-1 truncate">
-                        <Globe className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">{service.domain_name}</span>
+          <div className="border border-border rounded-xl overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Servizio</TableHead>
+                  <TableHead className="hidden md:table-cell">Tipo</TableHead>
+                  <TableHead>Stato</TableHead>
+                  <TableHead className="hidden lg:table-cell">Dominio / Server</TableHead>
+                  <TableHead className="hidden md:table-cell">Scadenza</TableHead>
+                  <TableHead className="hidden lg:table-cell">Ciclo</TableHead>
+                  <TableHead className="text-right">Prezzo</TableHead>
+                  <TableHead className="text-right">Azioni</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {services.map((service) => (
+                  <TableRow
+                    key={service.id}
+                    className={service.status === "suspended" || service.status === "cancelled" ? "opacity-60" : ""}
+                  >
+                    <TableCell className="font-medium">
+                      <div className="truncate max-w-[200px]">{service.service_name}</div>
+                      {service.description && (
+                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                          {service.description}
+                        </p>
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <Badge variant="outline" className="text-[10px] md:text-xs">
+                        {serviceTypeLabels[service.service_type]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={`text-[10px] md:text-xs ${statusColors[service.status]}`}>
+                        {statusLabels[service.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                      <div className="truncate max-w-[180px]">
+                        {service.domain_name || service.server_name || "-"}
                       </div>
-                    )}
-                    {service.server_name && (
-                      <div className="flex items-center gap-1 truncate">
-                        <Server className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate">{service.server_name}</span>
-                      </div>
-                    )}
-                    {service.expiration_date && (
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3 flex-shrink-0" />
-                        {format(new Date(service.expiration_date), "dd/MM/yy")}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1">
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell text-sm">
+                      {service.expiration_date
+                        ? format(new Date(service.expiration_date), "dd/MM/yy")
+                        : "-"}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
                       {billingCycleLabels[service.billing_cycle]}
-                    </div>
-                    {service.price && (
-                      <div className="flex items-center gap-1">
-                        <Euro className="w-3 h-3 flex-shrink-0" />
-                        {service.price.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm">
+                      {service.price ? `€ ${service.price.toFixed(2)}` : "-"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                        <Switch
+                          checked={service.status === "active"}
+                          onCheckedChange={() => toggleServiceStatus(service)}
+                          className="scale-90"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="p-2"
+                          onClick={() => setEditingService(service)}
+                          title="Modifica servizio"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive p-2"
+                          onClick={() => deleteService(service.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
-                    )}
-                  </div>
-
-                  {service.description && (
-                    <p className="text-xs md:text-sm text-muted-foreground mt-2 line-clamp-2">
-                      {service.description}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                  <Switch
-                    checked={service.status === "active"}
-                    onCheckedChange={() => toggleServiceStatus(service)}
-                    className="scale-90"
-                  />
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="p-2"
-                      onClick={() => setEditingService(service)}
-                      title="Modifica servizio"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive p-2"
-                      onClick={() => deleteService(service.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
+
       </div>
 
       {/* Accounting */}
