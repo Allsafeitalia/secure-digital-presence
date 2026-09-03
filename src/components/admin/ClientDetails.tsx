@@ -262,6 +262,46 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
     }
   };
 
+  const toggleInvoiceSent = async (service: ClientService) => {
+    const sent = !service.invoice_sent;
+    const { error } = await supabase
+      .from("client_services")
+      .update({ invoice_sent: sent, invoice_sent_at: sent ? new Date().toISOString() : null })
+      .eq("id", service.id);
+
+    if (error) {
+      toast({ title: "Errore", description: "Impossibile aggiornare la fattura", variant: "destructive" });
+      return;
+    }
+    toast({
+      title: sent ? "Fattura segnata come inviata" : "Fattura da inviare",
+      description: service.service_name,
+    });
+    fetchServices();
+  };
+
+  const toggleServicePaid = async (service: ClientService) => {
+    const paid = service.payment_status !== "paid";
+    const { error } = await supabase
+      .from("client_services")
+      .update({
+        payment_status: paid ? "paid" : "pending",
+        payment_date: paid ? new Date().toISOString() : null,
+      })
+      .eq("id", service.id);
+
+    if (error) {
+      toast({ title: "Errore", description: "Impossibile aggiornare il pagamento", variant: "destructive" });
+      return;
+    }
+    toast({
+      title: paid ? "Servizio segnato come pagato" : "Servizio segnato da pagare",
+      description: service.service_name,
+    });
+    fetchServices();
+  };
+
+
   const handleClientUpdate = (updatedClient: Client) => {
     setClient(updatedClient);
     onClientUpdate?.(updatedClient);
