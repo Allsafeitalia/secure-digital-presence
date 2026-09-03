@@ -686,7 +686,9 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
                   <TableHead className="hidden md:table-cell">Scadenza</TableHead>
                   <TableHead className="hidden lg:table-cell">Ciclo</TableHead>
                   <TableHead className="text-right">Prezzo</TableHead>
+                  <TableHead>Fatturazione</TableHead>
                   <TableHead className="text-right">Azioni</TableHead>
+
                 </TableRow>
               </TableHeader>
               <TableBody>
