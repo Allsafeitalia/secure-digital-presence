@@ -724,24 +724,6 @@ export default function ClientPortal() {
                               Paga {formatPrice(service.price)}
                             </Button>
                           ) : null}
-                          {hasPendingCancellation(service.id) ? (
-                            <Badge variant="secondary">
-                              <Clock className="w-3 h-3 mr-1" />
-                              Disattivazione richiesta
-                            </Badge>
-                          ) : canRequestCancellation(service) ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-destructive"
-                              onClick={() => openCancelModal(service)}
-                            >
-                              <Power className="w-4 h-4 mr-1" />
-                              Disattiva
-                            </Button>
-                          ) : (
-                            <Badge variant="outline">Disdetta non ancora disponibile</Badge>
-                          )}
                         </div>
                       </div>
 
