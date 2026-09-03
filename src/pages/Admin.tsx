@@ -628,12 +628,12 @@ const Admin = () => {
           ) : viewMode === "cancellations" ? (
             <CancellationRequests />
           ) : viewMode === "settings" ? (
-            <div className="p-4 md:p-8 max-w-4xl w-full mx-auto space-y-6">
+            <div className="p-4 md:p-8 max-w-[1400px] w-full mx-auto space-y-6">
               <EmailSettings />
               <AnalyticsApiKeys />
             </div>
           ) : viewMode === "tickets" && selectedTicket ? (
-            <div className="p-4 md:p-8 max-w-3xl w-full">
+            <div className="p-4 md:p-8 max-w-[1400px] w-full">
               {/* Mobile Back Button */}
               <Button
                 variant="ghost"

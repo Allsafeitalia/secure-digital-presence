@@ -393,7 +393,7 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
     .join(", ");
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl w-full">
+    <div className="p-4 md:p-8 max-w-[1400px] w-full">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 mb-4 md:mb-6">
         <Button variant="ghost" size="sm" onClick={onBack}>
@@ -618,9 +618,9 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
                     className={service.status === "suspended" || service.status === "cancelled" ? "opacity-60" : ""}
                   >
                     <TableCell className="font-medium">
-                      <div className="truncate max-w-[200px]">{service.service_name}</div>
+                      <div className="truncate max-w-[340px]">{service.service_name}</div>
                       {service.description && (
-                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        <p className="text-xs text-muted-foreground truncate max-w-[340px]">
                           {service.description}
                         </p>
                       )}
@@ -636,7 +636,7 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
                       </Badge>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                      <div className="truncate max-w-[180px]">
+                      <div className="truncate max-w-[300px]">
                         {service.domain_name || service.server_name || "-"}
                       </div>
                     </TableCell>

@@ -508,7 +508,7 @@ export default function ClientPortal() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background p-6">
-        <div className="max-w-6xl mx-auto space-y-6">
+        <div className="max-w-[1400px] mx-auto space-y-6">
           <Skeleton className="h-12 w-64" />
           <div className="grid md:grid-cols-3 gap-4">
             <Skeleton className="h-32" />
@@ -525,7 +525,7 @@ export default function ClientPortal() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Pannello Cliente</h1>
             {clientData && (
@@ -551,7 +551,7 @@ export default function ClientPortal() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-[1400px] mx-auto px-6 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto lg:inline-flex">
             <TabsTrigger value="overview" className="gap-2">
@@ -773,9 +773,9 @@ export default function ClientPortal() {
                         return (
                           <TableRow key={service.id}>
                             <TableCell className="font-medium">
-                              <div className="max-w-[200px] truncate">{service.service_name}</div>
+                              <div className="max-w-[340px] truncate">{service.service_name}</div>
                               {service.description && (
-                                <p className="text-xs text-muted-foreground max-w-[200px] truncate">
+                                <p className="text-xs text-muted-foreground max-w-[340px] truncate">
                                   {service.description}
                                 </p>
                               )}
@@ -787,7 +787,7 @@ export default function ClientPortal() {
                               <Badge variant={statusConf.variant}>{statusConf.label}</Badge>
                             </TableCell>
                             <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                              <div className="max-w-[180px] truncate">
+                              <div className="max-w-[300px] truncate">
                                 {service.domain_name || service.server_name || "-"}
                               </div>
                             </TableCell>
