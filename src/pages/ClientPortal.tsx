@@ -449,8 +449,12 @@ export default function ClientPortal() {
 
   const activeServices = services.filter(s => s.status === "active" || s.status === "expiring_soon");
 
-  const onlineServices = services.filter(s => s.is_online === true);
-  const offlineServices = services.filter(s => s.is_online === false && s.url_to_monitor);
+  const isServiceOnline = (s: Service) =>
+    (s.status === "active" || s.status === "expiring_soon") && s.is_online === true;
+  const isServiceOffline = (s: Service) =>
+    s.status === "suspended" || (s.is_online === false && !!s.url_to_monitor);
+  const onlineServices = services.filter(isServiceOnline);
+  const offlineServices = services.filter(isServiceOffline);
 
   // Calculate total cost
   const totalMonthlyCost = services
