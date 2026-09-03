@@ -240,8 +240,16 @@ export default function ClientLogin() {
         throw error;
       }
 
-      // Check if this is a client user
-      const isClient = data.user?.user_metadata?.is_client;
+      // Check if this is a client user (metadata OR linked client record)
+      let isClient = Boolean(data.user?.user_metadata?.is_client);
+      if (!isClient && data.user) {
+        const { data: clientRow } = await supabase
+          .from("clients")
+          .select("id")
+          .eq("client_user_id", data.user.id)
+          .maybeSingle();
+        isClient = Boolean(clientRow);
+      }
       if (!isClient) {
         await supabase.auth.signOut();
         toast({
@@ -251,6 +259,7 @@ export default function ClientLogin() {
         });
         return;
       }
+
 
       toast({
         title: "Benvenuto!",
