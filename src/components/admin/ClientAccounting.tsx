@@ -206,34 +206,41 @@ export const ClientAccounting = ({ clientId }: ClientAccountingProps) => {
       </div>
 
       {/* Riepilogo periodo */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-secondary/30 rounded-xl p-3 md:p-4">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-            <Euro className="w-3.5 h-3.5" /> Totale periodo
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+          <div className="flex items-center gap-1.5 text-xs md:text-sm text-muted-foreground mb-1">
+            <Euro className="w-4 h-4" /> Totale periodo
           </div>
-          <p className="text-lg md:text-xl font-bold">{euro(totalPeriod)}</p>
+          <p className="text-xl md:text-2xl font-bold text-primary">{euro(totalPeriod)}</p>
         </div>
-        <div className="bg-secondary/30 rounded-xl p-3 md:p-4">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-            <Receipt className="w-3.5 h-3.5" /> Fatturato ({periodInvoices.length})
+        <div className="bg-secondary/30 rounded-xl p-4">
+          <div className="flex items-center gap-1.5 text-xs md:text-sm text-muted-foreground mb-1">
+            <Receipt className="w-4 h-4" /> Fatturato ({periodInvoices.length})
           </div>
-          <p className="text-lg md:text-xl font-bold">{euro(invoiced)}</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Incassato {euro(invoicedPaid)}
-            {invoicedPending > 0 && ` · Da saldare ${euro(invoicedPending)}`}
+          <p className="text-xl md:text-2xl font-bold">{euro(invoiced)}</p>
+        </div>
+        <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
+          <div className="flex items-center gap-1.5 text-xs md:text-sm text-green-700 mb-1">
+            <Receipt className="w-4 h-4" /> Incassato
+          </div>
+          <p className="text-xl md:text-2xl font-bold text-green-600">{euro(invoicedPaid)}</p>
+        </div>
+        <div className={`rounded-xl p-4 border ${invoicedPending > 0 ? "bg-red-500/10 border-red-500/20" : "bg-secondary/30 border-transparent"}`}>
+          <div className={`flex items-center gap-1.5 text-xs md:text-sm mb-1 ${invoicedPending > 0 ? "text-red-700" : "text-muted-foreground"}`}>
+            <Receipt className="w-4 h-4" /> Da saldare
+          </div>
+          <p className={`text-xl md:text-2xl font-bold ${invoicedPending > 0 ? "text-red-600" : ""}`}>
+            {euro(invoicedPending)}
           </p>
         </div>
-        <div className="bg-secondary/30 rounded-xl p-3 md:p-4">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-            <Wrench className="w-3.5 h-3.5" /> Assistenza ({periodMaintenance.length})
+        <div className="bg-secondary/30 rounded-xl p-4">
+          <div className="flex items-center gap-1.5 text-xs md:text-sm text-muted-foreground mb-1">
+            <Wrench className="w-4 h-4" /> Assistenza ({periodMaintenance.length})
           </div>
-          <p className="text-lg md:text-xl font-bold">{euro(maintenanceCost)}</p>
-        </div>
-        <div className="bg-secondary/30 rounded-xl p-3 md:p-4">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-            <TrendingUp className="w-3.5 h-3.5" /> Totale da sempre
-          </div>
-          <p className="text-lg md:text-xl font-bold">{euro(totalEver)}</p>
+          <p className="text-xl md:text-2xl font-bold">{euro(maintenanceCost)}</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Totale da sempre: {euro(totalEver)}
+          </p>
         </div>
       </div>
 
