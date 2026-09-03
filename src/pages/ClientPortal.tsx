@@ -909,7 +909,7 @@ export default function ClientPortal() {
           <div className="space-y-4 py-4">
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
               <p className="font-medium mb-1">Nota:</p>
-              <p>I servizi sono impostati per il rinnovo automatico. Una volta elaborata la tua richiesta, il servizio non verrà rinnovato alla prossima scadenza.</p>
+              <p>La disdetta è possibile solo nell'ultimo mese prima della scadenza. Una volta elaborata la richiesta, il servizio non verrà rinnovato alla prossima scadenza; dopo il rinnovo potrai disdirlo di nuovo solo nel mese precedente alla scadenza successiva.</p>
             </div>
 
             <div className="space-y-2">
