@@ -658,6 +658,13 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
         )}
       </div>
 
+      {/* Invoices */}
+      <ClientInvoices
+        clientId={client.id}
+        services={services.map((s) => ({ id: s.id, service_name: s.service_name }))}
+      />
+
+
       {/* Notes */}
       {client.notes && (
         <div className="mt-4 md:mt-6 bg-secondary/30 rounded-xl p-3 md:p-4">
