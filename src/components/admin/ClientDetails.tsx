@@ -23,6 +23,7 @@ import {
   FileText,
   Plus,
   Trash2,
+  Pencil,
   Calendar,
   Server,
   Globe,
@@ -72,6 +73,7 @@ interface ClientService {
   description: string | null;
   server_name: string | null;
   domain_name: string | null;
+  url_to_monitor?: string | null;
   expiration_date: string | null;
   billing_cycle: BillingCycle;
   status: ServiceStatus;
@@ -128,6 +130,7 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
   const [services, setServices] = useState<ClientService[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddService, setShowAddService] = useState(false);
+  const [editingService, setEditingService] = useState<ClientService | null>(null);
   const [showEditClient, setShowEditClient] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isResendingCredentials, setIsResendingCredentials] = useState(false);
@@ -644,14 +647,25 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
                     onCheckedChange={() => toggleServiceStatus(service)}
                     className="scale-90"
                   />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive p-2"
-                    onClick={() => deleteService(service.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="p-2"
+                      onClick={() => setEditingService(service)}
+                      title="Modifica servizio"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive p-2"
+                      onClick={() => deleteService(service.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -681,6 +695,15 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
         onOpenChange={setShowAddService}
         clientId={client.id}
         clientName={client.name}
+        onSuccess={fetchServices}
+      />
+
+      <AddServiceModal
+        open={!!editingService}
+        onOpenChange={(open) => !open && setEditingService(null)}
+        clientId={client.id}
+        clientName={client.name}
+        service={editingService}
         onSuccess={fetchServices}
       />
 
