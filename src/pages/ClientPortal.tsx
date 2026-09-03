@@ -86,6 +86,21 @@ interface ClientService {
 
 }
 
+const SERVICE_STATUS_ORDER: Record<string, number> = {
+  active: 0,
+  expiring_soon: 1,
+  pending: 2,
+  suspended: 3,
+  expired: 4,
+  cancelled: 5,
+};
+
+const sortServicesByStatus = (list: ClientService[]) =>
+  [...list].sort((a, b) => {
+    const diff = (SERVICE_STATUS_ORDER[a.status] ?? 99) - (SERVICE_STATUS_ORDER[b.status] ?? 99);
+    return diff !== 0 ? diff : a.service_name.localeCompare(b.service_name);
+  });
+
 interface CancellationRequest {
   id: string;
   service_id: string;
@@ -214,7 +229,7 @@ export default function ClientPortal() {
 
       if (servicesError) throw servicesError;
 
-      setServices(servicesData || []);
+      setServices(sortServicesByStatus(servicesData || []));
 
       // Fetch cancellation requests
       const { data: cancelRequests, error: cancelError } = await supabase
