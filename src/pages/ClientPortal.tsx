@@ -785,6 +785,12 @@ export default function ClientPortal() {
               <MaintenanceHistory clientId={clientData.id} />
             )}
           </TabsContent>
+
+          {/* Invoices Tab */}
+          <TabsContent value="invoices">
+            {clientData && <ClientInvoicesList clientId={clientData.id} />}
+          </TabsContent>
+
         </Tabs>
       </main>
 
