@@ -148,6 +148,8 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
   const [showEditClient, setShowEditClient] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isResendingCredentials, setIsResendingCredentials] = useState(false);
+  const [invoicingServiceId, setInvoicingServiceId] = useState<string | null>(null);
+  const [invoicesKey, setInvoicesKey] = useState(0);
 
   useEffect(() => {
     setClient(initialClient);
@@ -902,6 +904,7 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
 
       {/* Invoices */}
       <ClientInvoices
+        key={invoicesKey}
         clientId={client.id}
         services={services.map((s) => ({ id: s.id, service_name: s.service_name }))}
       />
