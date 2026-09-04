@@ -267,10 +267,35 @@ export const ClientInvoices = ({ clientId, services, onChange }: ClientInvoicesP
               </div>
               <div className="flex flex-col items-end gap-2 flex-shrink-0">
                 <span className="font-semibold">€ {Number(inv.total_amount).toFixed(2)}</span>
-                <div className="flex gap-1">
+                <div className="flex gap-1 flex-wrap justify-end">
+                  {inv.fic_document_id ? (
+                    inv.fic_url && (
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={inv.fic_url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="w-4 h-4" />
+                          Apri su FIC
+                        </a>
+                      </Button>
+                    )
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => createOnFic(inv)}
+                      disabled={ficLoadingId === inv.id}
+                    >
+                      {ficLoadingId === inv.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Cloud className="w-4 h-4" />
+                      )}
+                      Crea su FIC
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" onClick={() => togglePaid(inv)}>
                     {inv.payment_status === "paid" ? "Segna da pagare" : "Segna pagata"}
                   </Button>
+
                   <Button
                     variant="ghost"
                     size="sm"
