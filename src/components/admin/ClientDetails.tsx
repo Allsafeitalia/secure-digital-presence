@@ -262,7 +262,90 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
     }
   };
 
+  const invoiceService = async (service: ClientService) => {
+    if (!service.price || Number(service.price) <= 0) {
+      toast({
+        title: "Prezzo mancante",
+        description: "Imposta un prezzo sul servizio prima di fatturarlo",
+        variant: "destructive",
+      });
+      return;
+    }
+    setInvoicingServiceId(service.id);
+    try {
+      const year = new Date().getFullYear();
+      const { data: existing } = await supabase
+        .from("invoices")
+        .select("invoice_number")
+        .like("invoice_number", `%/${year}`);
+
+      const next =
+        (existing || []).reduce((max, row) => {
+          const n = parseInt(String(row.invoice_number).split("/")[0], 10);
+          return Number.isFinite(n) && n > max ? n : max;
+        }, 0) + 1;
+      const invoiceNumber = `${next}/${year}`;
+
+      const { data: inserted, error } = await supabase
+        .from("invoices")
+        .insert({
+          client_id: client.id,
+          service_id: service.id,
+          invoice_number: invoiceNumber,
+          invoice_date: new Date().toISOString().slice(0, 10),
+          description: service.service_name,
+          total_amount: Number(service.price),
+          net_amount: Number(service.price),
+          payment_status: service.payment_status === "paid" ? "paid" : "pending",
+          payment_date:
+            service.payment_status === "paid" ? new Date().toISOString().slice(0, 10) : null,
+          payment_method: "Bonifico Bancario",
+          notes: service.order_number ? `Ordine ${service.order_number}` : null,
+        })
+        .select("id")
+        .single();
+
+      if (error || !inserted) throw error || new Error("Insert fallita");
+
+      const { data: ficData, error: ficError } = await supabase.functions.invoke("fattureincloud", {
+        body: { action: "create_invoice", invoice_id: inserted.id },
+      });
+
+      await supabase
+        .from("client_services")
+        .update({ invoice_sent: true, invoice_sent_at: new Date().toISOString() })
+        .eq("id", service.id);
+
+      if (ficError || (ficData as any)?.error) {
+        toast({
+          title: `Fattura ${invoiceNumber} creata`,
+          description:
+            "Registrata nel gestionale, ma la creazione su Fatture in Cloud è fallita: " +
+            ((ficData as any)?.error || ficError?.message || "errore sconosciuto"),
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: `Fattura ${invoiceNumber} emessa`,
+          description: `${service.service_name} — creata anche su Fatture in Cloud`,
+        });
+      }
+
+      fetchServices();
+      setInvoicesKey((k) => k + 1);
+    } catch (e: any) {
+      toast({
+        title: "Errore",
+        description: e?.message || "Impossibile creare la fattura",
+        variant: "destructive",
+      });
+    } finally {
+      setInvoicingServiceId(null);
+    }
+  };
+
   const toggleInvoiceSent = async (service: ClientService) => {
+
     const sent = !service.invoice_sent;
     const { error } = await supabase
       .from("client_services")
