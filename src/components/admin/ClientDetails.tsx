@@ -42,6 +42,7 @@ import {
   Power,
   KeyRound,
   Loader2,
+  Cloud,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -861,6 +862,21 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
                             {service.payment_status === "paid" ? "Segna da pagare" : "Segna pagato"}
                           </Button>
                         </div>
+                        {!service.invoice_sent && (
+                          <Button
+                            size="sm"
+                            className="h-7 text-[11px]"
+                            onClick={() => invoiceService(service)}
+                            disabled={invoicingServiceId === service.id}
+                          >
+                            {invoicingServiceId === service.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Cloud className="w-3.5 h-3.5" />
+                            )}
+                            Fattura ora
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
