@@ -42,7 +42,6 @@ import {
   Power,
   KeyRound,
   Loader2,
-  Cloud,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -310,29 +309,15 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
 
       if (error || !inserted) throw error || new Error("Insert fallita");
 
-      const { data: ficData, error: ficError } = await supabase.functions.invoke("fattureincloud", {
-        body: { action: "create_invoice", invoice_id: inserted.id },
-      });
-
       await supabase
         .from("client_services")
         .update({ invoice_sent: true, invoice_sent_at: new Date().toISOString() })
         .eq("id", service.id);
 
-      if (ficError || (ficData as any)?.error) {
-        toast({
-          title: `Fattura ${invoiceNumber} creata`,
-          description:
-            "Registrata nel gestionale, ma la creazione su Fatture in Cloud è fallita: " +
-            ((ficData as any)?.error || ficError?.message || "errore sconosciuto"),
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: `Fattura ${invoiceNumber} emessa`,
-          description: `${service.service_name} — creata anche su Fatture in Cloud`,
-        });
-      }
+      toast({
+        title: `Fattura ${invoiceNumber} creata`,
+        description: service.service_name,
+      });
 
       fetchServices();
       setInvoicesKey((k) => k + 1);
@@ -871,9 +856,7 @@ export const ClientDetails = ({ client: initialClient, onBack, onClientUpdate, o
                           >
                             {invoicingServiceId === service.id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Cloud className="w-3.5 h-3.5" />
-                            )}
+                            ) : null}
                             Fattura ora
                           </Button>
                         )}
