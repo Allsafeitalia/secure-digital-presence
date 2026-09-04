@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Receipt, Plus, Trash2, CheckCircle2, Clock } from "lucide-react";
+import { Receipt, Plus, Trash2, CheckCircle2, Clock, Cloud, RefreshCw, ExternalLink, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -35,7 +35,11 @@ interface Invoice {
   payment_method: string | null;
   service_id: string | null;
   notes: string | null;
+  fic_document_id: number | null;
+  fic_url: string | null;
+  fic_synced_at: string | null;
 }
+
 
 interface ServiceOption {
   id: string;
@@ -67,8 +71,54 @@ export const ClientInvoices = ({ clientId, services, onChange }: ClientInvoicesP
   const [showAdd, setShowAdd] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [ficLoadingId, setFicLoadingId] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const createOnFic = async (invoice: Invoice) => {
+    setFicLoadingId(invoice.id);
+    const { data, error } = await supabase.functions.invoke("fattureincloud", {
+      body: { action: "create_invoice", invoice_id: invoice.id },
+    });
+    setFicLoadingId(null);
+    if (error || (data as any)?.error) {
+      toast({
+        title: "Errore Fatture in Cloud",
+        description: (data as any)?.error || error?.message || "Creazione fallita",
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({
+      title: (data as any)?.alreadyExists ? "Già presente" : "Fattura creata",
+      description: `Fattura ${invoice.invoice_number} su Fatture in Cloud`,
+    });
+    fetchInvoices();
+  };
+
+  const syncFic = async () => {
+    setIsSyncing(true);
+    const { data, error } = await supabase.functions.invoke("fattureincloud", {
+      body: { action: "sync", client_id: clientId },
+    });
+    setIsSyncing(false);
+    if (error || (data as any)?.error) {
+      toast({
+        title: "Errore sincronizzazione",
+        description: (data as any)?.error || error?.message || "Sincronizzazione fallita",
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({
+      title: "Sincronizzazione completata",
+      description: `${(data as any)?.checked ?? 0} fatture controllate, ${(data as any)?.updated ?? 0} aggiornate`,
+    });
+    fetchInvoices();
+    onChange?.();
+  };
 
   const fetchInvoices = async () => {
+
     setIsLoading(true);
     const { data, error } = await supabase
       .from("invoices")
@@ -154,10 +204,17 @@ export const ClientInvoices = ({ clientId, services, onChange }: ClientInvoicesP
           <Receipt className="w-4 h-4" />
           Fatture ({invoices.length}) — totale € {total.toFixed(2)}
         </h4>
-        <Button size="sm" onClick={() => setShowAdd(true)}>
-          <Plus className="w-4 h-4" />
-          Aggiungi Fattura
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={syncFic} disabled={isSyncing}>
+            {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Sincronizza FIC
+          </Button>
+          <Button size="sm" onClick={() => setShowAdd(true)}>
+            <Plus className="w-4 h-4" />
+            Aggiungi Fattura
+          </Button>
+        </div>
+
       </div>
 
       {isLoading ? (
@@ -189,7 +246,14 @@ export const ClientInvoices = ({ clientId, services, onChange }: ClientInvoicesP
                     )}
                     {inv.payment_status === "paid" ? "Pagata" : "Da pagare"}
                   </Badge>
+                  {inv.fic_document_id && (
+                    <Badge variant="outline" className="bg-sky-500/10 text-sky-700 border-sky-500/20">
+                      <Cloud className="w-3 h-3 mr-1" />
+                      Fatture in Cloud
+                    </Badge>
+                  )}
                 </div>
+
                 <p className="text-sm text-muted-foreground">
                   {format(new Date(inv.invoice_date), "dd MMM yyyy", { locale: it })}
                   {inv.description ? ` · ${inv.description}` : ""}

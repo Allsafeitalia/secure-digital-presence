@@ -435,6 +435,9 @@ export type Database = {
           client_id: string
           created_at: string
           description: string | null
+          fic_document_id: number | null
+          fic_synced_at: string | null
+          fic_url: string | null
           id: string
           invoice_date: string
           invoice_number: string
@@ -451,6 +454,9 @@ export type Database = {
           client_id: string
           created_at?: string
           description?: string | null
+          fic_document_id?: number | null
+          fic_synced_at?: string | null
+          fic_url?: string | null
           id?: string
           invoice_date?: string
           invoice_number: string
@@ -467,6 +473,9 @@ export type Database = {
           client_id?: string
           created_at?: string
           description?: string | null
+          fic_document_id?: number | null
+          fic_synced_at?: string | null
+          fic_url?: string | null
           id?: string
           invoice_date?: string
           invoice_number?: string
