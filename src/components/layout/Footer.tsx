@@ -29,7 +29,7 @@ export const Footer = () => {
 
           {/* Navigation */}
           <nav className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
-            {["Home", "Chi Sono", "Servizi", "Come Lavoro", "Contatti"].map((item) => (
+            {["Home", "Chi Sono", "Progetti", "Servizi", "Come Lavoro", "Contatti"].map((item) => (
               <a
                 key={item}
                 href={`#${item.toLowerCase().replace(" ", "-")}`}
