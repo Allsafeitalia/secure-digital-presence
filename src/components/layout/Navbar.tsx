@@ -9,6 +9,7 @@ import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
 const navLinks = [
   { name: "Home", href: "#home" },
   { name: "Chi Sono", href: "#chi-sono" },
+  { name: "Progetti", href: "#progetti" },
   { name: "Servizi", href: "#servizi" },
   { name: "Come Lavoro", href: "#come-lavoro" },
   { name: "Contatti", href: "#contatti" },
