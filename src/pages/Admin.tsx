@@ -307,13 +307,15 @@ const Admin = () => {
                 <Activity className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               ) : viewMode === "helpdesk" ? (
                 <Wrench className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+              ) : viewMode === "ovh" ? (
+                <CalendarClock className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               ) : (
                 <Settings className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               )}
             </div>
             <div className="min-w-0">
               <h1 className="font-display font-bold text-sm md:text-lg truncate">
-                {viewMode === "tickets" ? "Ticket" : viewMode === "clients" ? "Clienti" : viewMode === "cancellations" ? "Richieste" : viewMode === "monitoring" ? "Monitoraggio" : viewMode === "helpdesk" ? "Helpdesk" : "Impostazioni"}
+                {viewMode === "tickets" ? "Ticket" : viewMode === "clients" ? "Clienti" : viewMode === "cancellations" ? "Richieste" : viewMode === "monitoring" ? "Monitoraggio" : viewMode === "helpdesk" ? "Helpdesk" : viewMode === "ovh" ? "Scadenze OVH" : "Impostazioni"}
               </h1>
               <p className="text-muted-foreground text-xs md:text-sm hidden md:block">
                 {viewMode === "tickets"
@@ -326,6 +328,8 @@ const Admin = () => {
                   ? "Stato dei servizi monitorati"
                   : viewMode === "helpdesk"
                   ? "Gestione interventi e assistenza"
+                  : viewMode === "ovh"
+                  ? "Scadenze e costi dei servizi OVH"
                   : "Configura le impostazioni del sistema"}
               </p>
             </div>
