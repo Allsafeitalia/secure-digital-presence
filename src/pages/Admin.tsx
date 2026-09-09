@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   Activity,
   Wrench,
+  CalendarClock,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -413,6 +414,21 @@ const Admin = () => {
               </button>
               <button
                 onClick={() => {
+                  setViewMode("ovh");
+                  setSelectedTicket(null);
+                  setSelectedClient(null);
+                }}
+                className={`px-2 md:px-4 py-1.5 md:py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
+                  viewMode === "ovh"
+                    ? "bg-background shadow-sm"
+                    : "hover:bg-background/50"
+                }`}
+              >
+                <CalendarClock className="w-3.5 h-3.5 md:w-4 md:h-4 inline-block md:mr-2" />
+                <span className="hidden md:inline">OVH</span>
+              </button>
+              <button
+                onClick={() => {
                   setViewMode("settings");
                   setSelectedTicket(null);
                   setSelectedClient(null);
@@ -449,7 +465,7 @@ const Admin = () => {
 
       <div className="flex flex-col md:flex-row h-[calc(100vh-57px)] md:h-[calc(100vh-73px)]">
         {/* Sidebar - Hidden on mobile when item selected */}
-        <aside className={`${viewMode === "settings" || viewMode === "cancellations" || viewMode === "monitoring" || viewMode === "helpdesk" ? "hidden" : (selectedTicket || selectedClient) ? "hidden md:flex" : "flex"} w-full md:w-80 bg-card md:border-r border-border flex-col h-full md:h-auto`}>
+        <aside className={`${viewMode === "settings" || viewMode === "cancellations" || viewMode === "monitoring" || viewMode === "helpdesk" || viewMode === "ovh" ? "hidden" : (selectedTicket || selectedClient) ? "hidden md:flex" : "flex"} w-full md:w-80 bg-card md:border-r border-border flex-col h-full md:h-auto`}>
           {viewMode === "tickets" ? (
             <>
               {/* Stats */}
