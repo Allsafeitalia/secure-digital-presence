@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   Activity,
   Wrench,
+  CalendarClock,
 } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
@@ -33,6 +34,7 @@ import { ServiceMonitoring } from "@/components/admin/ServiceMonitoring";
 import { MaintenanceRequests } from "@/components/admin/MaintenanceRequests";
 import { ConvertTicketModal } from "@/components/admin/ConvertTicketModal";
 import { AnalyticsApiKeys } from "@/components/admin/AnalyticsApiKeys";
+import { OvhExpirations } from "@/components/admin/OvhExpirations";
 
 interface ContactTicket {
   id: string;
@@ -66,7 +68,7 @@ interface Client {
   is_active?: boolean;
 }
 
-type ViewMode = "tickets" | "clients" | "cancellations" | "monitoring" | "helpdesk" | "settings";
+type ViewMode = "tickets" | "clients" | "cancellations" | "monitoring" | "helpdesk" | "ovh" | "settings";
 
 const Admin = () => {
   const [tickets, setTickets] = useState<ContactTicket[]>([]);
@@ -306,13 +308,15 @@ const Admin = () => {
                 <Activity className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               ) : viewMode === "helpdesk" ? (
                 <Wrench className="w-4 h-4 md:w-5 md:h-5 text-primary" />
+              ) : viewMode === "ovh" ? (
+                <CalendarClock className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               ) : (
                 <Settings className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               )}
             </div>
             <div className="min-w-0">
               <h1 className="font-display font-bold text-sm md:text-lg truncate">
-                {viewMode === "tickets" ? "Ticket" : viewMode === "clients" ? "Clienti" : viewMode === "cancellations" ? "Richieste" : viewMode === "monitoring" ? "Monitoraggio" : viewMode === "helpdesk" ? "Helpdesk" : "Impostazioni"}
+                {viewMode === "tickets" ? "Ticket" : viewMode === "clients" ? "Clienti" : viewMode === "cancellations" ? "Richieste" : viewMode === "monitoring" ? "Monitoraggio" : viewMode === "helpdesk" ? "Helpdesk" : viewMode === "ovh" ? "Scadenze OVH" : "Impostazioni"}
               </h1>
               <p className="text-muted-foreground text-xs md:text-sm hidden md:block">
                 {viewMode === "tickets"
@@ -325,6 +329,8 @@ const Admin = () => {
                   ? "Stato dei servizi monitorati"
                   : viewMode === "helpdesk"
                   ? "Gestione interventi e assistenza"
+                  : viewMode === "ovh"
+                  ? "Scadenze e costi dei servizi OVH"
                   : "Configura le impostazioni del sistema"}
               </p>
             </div>
@@ -408,6 +414,21 @@ const Admin = () => {
               </button>
               <button
                 onClick={() => {
+                  setViewMode("ovh");
+                  setSelectedTicket(null);
+                  setSelectedClient(null);
+                }}
+                className={`px-2 md:px-4 py-1.5 md:py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
+                  viewMode === "ovh"
+                    ? "bg-background shadow-sm"
+                    : "hover:bg-background/50"
+                }`}
+              >
+                <CalendarClock className="w-3.5 h-3.5 md:w-4 md:h-4 inline-block md:mr-2" />
+                <span className="hidden md:inline">OVH</span>
+              </button>
+              <button
+                onClick={() => {
                   setViewMode("settings");
                   setSelectedTicket(null);
                   setSelectedClient(null);
@@ -444,7 +465,7 @@ const Admin = () => {
 
       <div className="flex flex-col md:flex-row h-[calc(100vh-57px)] md:h-[calc(100vh-73px)]">
         {/* Sidebar - Hidden on mobile when item selected */}
-        <aside className={`${viewMode === "settings" || viewMode === "cancellations" || viewMode === "monitoring" || viewMode === "helpdesk" ? "hidden" : (selectedTicket || selectedClient) ? "hidden md:flex" : "flex"} w-full md:w-80 bg-card md:border-r border-border flex-col h-full md:h-auto`}>
+        <aside className={`${viewMode === "settings" || viewMode === "cancellations" || viewMode === "monitoring" || viewMode === "helpdesk" || viewMode === "ovh" ? "hidden" : (selectedTicket || selectedClient) ? "hidden md:flex" : "flex"} w-full md:w-80 bg-card md:border-r border-border flex-col h-full md:h-auto`}>
           {viewMode === "tickets" ? (
             <>
               {/* Stats */}
@@ -620,11 +641,13 @@ const Admin = () => {
         </aside>
 
         {/* Main Content - Hidden on mobile when no item selected */}
-        <main className={`${(selectedTicket || selectedClient || viewMode === "settings" || viewMode === "cancellations" || viewMode === "monitoring" || viewMode === "helpdesk") ? 'flex' : 'hidden md:flex'} flex-1 overflow-y-auto flex-col`}>
+        <main className={`${(selectedTicket || selectedClient || viewMode === "settings" || viewMode === "cancellations" || viewMode === "monitoring" || viewMode === "helpdesk" || viewMode === "ovh") ? 'flex' : 'hidden md:flex'} flex-1 overflow-y-auto flex-col`}>
           {viewMode === "monitoring" ? (
             <ServiceMonitoring />
           ) : viewMode === "helpdesk" ? (
             <MaintenanceRequests />
+          ) : viewMode === "ovh" ? (
+            <OvhExpirations />
           ) : viewMode === "cancellations" ? (
             <CancellationRequests />
           ) : viewMode === "settings" ? (
