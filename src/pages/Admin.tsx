@@ -641,11 +641,13 @@ const Admin = () => {
         </aside>
 
         {/* Main Content - Hidden on mobile when no item selected */}
-        <main className={`${(selectedTicket || selectedClient || viewMode === "settings" || viewMode === "cancellations" || viewMode === "monitoring" || viewMode === "helpdesk") ? 'flex' : 'hidden md:flex'} flex-1 overflow-y-auto flex-col`}>
+        <main className={`${(selectedTicket || selectedClient || viewMode === "settings" || viewMode === "cancellations" || viewMode === "monitoring" || viewMode === "helpdesk" || viewMode === "ovh") ? 'flex' : 'hidden md:flex'} flex-1 overflow-y-auto flex-col`}>
           {viewMode === "monitoring" ? (
             <ServiceMonitoring />
           ) : viewMode === "helpdesk" ? (
             <MaintenanceRequests />
+          ) : viewMode === "ovh" ? (
+            <OvhExpirations />
           ) : viewMode === "cancellations" ? (
             <CancellationRequests />
           ) : viewMode === "settings" ? (
