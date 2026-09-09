@@ -13,17 +13,21 @@ async function sha1Hex(text: string): Promise<string> {
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-async function ovhTime(): Promise<number> {
-  const res = await fetch(`${OVH_BASE}/auth/time`)
-  if (!res.ok) throw new Error('Impossibile ottenere il timestamp OVH')
-  return await res.json()
+let timeDelta: number | null = null
+async function ovhTimestamp(): Promise<number> {
+  if (timeDelta === null) {
+    const res = await fetch(`${OVH_BASE}/auth/time`)
+    if (!res.ok) throw new Error('Impossibile ottenere il timestamp OVH')
+    const serverTime = await res.json() as number
+    timeDelta = serverTime - Math.floor(Date.now() / 1000)
+  }
+  return Math.floor(Date.now() / 1000) + timeDelta
 }
 
 async function ovhGet(path: string): Promise<unknown> {
   const query = `${OVH_BASE}${path}`
-  const ts = await ovhTime()
-  const body = ''
-  const signature = '$1$' + (await sha1Hex(`${AS}+${CK}+GET+${query}+${body}+${ts}`))
+  const ts = await ovhTimestamp()
+  const signature = '$1$' + (await sha1Hex(`${AS}+${CK}+GET+${query}++${ts}`))
   const res = await fetch(query, {
     method: 'GET',
     headers: {
@@ -52,35 +56,105 @@ interface ServiceItem {
   currency: string | null
 }
 
-function extractPrice(info: Record<string, unknown>): { price: number | null; currency: string | null } {
-  try {
-    const billing = info?.billing as Record<string, unknown> | undefined
-    const pricing = billing?.pricing as Record<string, unknown> | undefined
-    const priceObj = pricing?.price as Record<string, unknown> | undefined
-    const value = priceObj?.value
-    if (typeof value === 'number') {
-      return { price: value, currency: (priceObj?.currencyCode as string) ?? 'EUR' }
-    }
-  } catch { /* ignore */ }
-  return { price: null, currency: null }
+const ROUTE_LABELS: Array<[string, string]> = [
+  ['/domain/zone', 'Zona DNS'],
+  ['/domain', 'Dominio'],
+  ['/hosting/web', 'Hosting Web'],
+  ['/hosting/privateDatabase', 'Database'],
+  ['/email/domain', 'Email dominio'],
+  ['/email/pro', 'Email Pro'],
+  ['/email/exchange', 'Exchange'],
+  ['/msServices', 'Microsoft'],
+  ['/vps', 'VPS'],
+  ['/dedicated/server', 'Server dedicato'],
+  ['/dedicated/nasha', 'NAS-HA'],
+  ['/dedicated/housing', 'Housing'],
+  ['/cloud/project', 'Public Cloud'],
+  ['/dedicatedCloud', 'Hosted Private Cloud'],
+  ['/ip', 'IP'],
+  ['/ipLoadbalancing', 'Load Balancer'],
+  ['/license', 'Licenza'],
+  ['/telephony', 'Telefonia'],
+  ['/sms', 'SMS'],
+  ['/veeamCloudConnect', 'Veeam'],
+  ['/vrack', 'vRack'],
+  ['/ssl', 'Certificato SSL'],
+  ['/allDom', 'AllDom'],
+]
+
+function labelFromRoute(path: string | null): string {
+  if (!path) return 'Altro'
+  for (const [prefix, label] of ROUTE_LABELS) {
+    if (path.startsWith(prefix)) return label
+  }
+  const seg = path.split('/').filter(Boolean)[0]
+  return seg ? seg.charAt(0).toUpperCase() + seg.slice(1) : 'Altro'
 }
 
-function mapService(category: string, name: string, info: Record<string, unknown> | null): ServiceItem {
+function num(v: unknown): number | null {
+  return typeof v === 'number' ? v : null
+}
+
+function mapUniversal(detail: Record<string, any>): ServiceItem {
+  const billing = detail?.billing ?? {}
+  const pricing = billing?.pricing ?? {}
+  const renewObj = billing?.renew ?? {}
+  const current = renewObj?.current ?? {}
+  const resource = detail?.resource ?? {}
+  const routePath: string | null = detail?.route?.path ?? null
+
+  const priceValue =
+    num(pricing?.price?.value) ??
+    num(renewObj?.current?.price?.value) ??
+    null
+  const currency =
+    pricing?.price?.currencyCode ?? renewObj?.current?.price?.currencyCode ?? (priceValue !== null ? 'EUR' : null)
+
+  const mode: string | null = current?.mode ?? renewObj?.mode ?? null
+  const renewMode = mode
+    ? (mode.toLowerCase().includes('auto') ? 'automatico' : mode.toLowerCase().includes('manual') ? 'manuale' : mode)
+    : null
+
+  const period = current?.period ?? pricing?.interval ?? pricing?.duration ?? null
+
+  return {
+    category: labelFromRoute(routePath),
+    name: resource?.displayName ?? resource?.name ?? detail?.serviceId?.toString() ?? 'servizio',
+    expiration: billing?.expirationDate ?? billing?.nextBillingDate ?? null,
+    status: detail?.state ?? billing?.lifecycle?.current?.state ?? null,
+    renew_mode: renewMode,
+    renew_period: period ? String(period) : null,
+    price: priceValue,
+    currency,
+  }
+}
+
+// Fallback su endpoint classici quando /services non è accessibile
+function mapLegacy(category: string, name: string, info: Record<string, any> | null): ServiceItem {
   if (!info) {
     return { category, name, expiration: null, status: 'errore', renew_mode: null, renew_period: null, price: null, currency: null }
   }
-  const renew = info?.renew as Record<string, unknown> | undefined
-  const { price, currency } = extractPrice(info)
+  const renew = info?.renew ?? {}
+  const price = num(info?.billing?.pricing?.price?.value)
   return {
     category,
     name,
-    expiration: (info?.expiration as string) ?? null,
-    status: (info?.status as string) ?? null,
+    expiration: info?.expiration ?? null,
+    status: info?.status ?? null,
     renew_mode: renew?.automatic ? 'automatico' : 'manuale',
     renew_period: renew?.period ? String(renew.period) : null,
     price,
-    currency,
+    currency: price !== null ? (info?.billing?.pricing?.price?.currencyCode ?? 'EUR') : null,
   }
+}
+
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = []
+  for (let i = 0; i < items.length; i += limit) {
+    const chunk = items.slice(i, i + limit)
+    out.push(...await Promise.all(chunk.map(fn)))
+  }
+  return out
 }
 
 Deno.serve(async (req) => {
@@ -95,7 +169,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Verifica utente admin
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Non autenticato' }), {
@@ -123,31 +196,56 @@ Deno.serve(async (req) => {
     const services: ServiceItem[] = []
     const errors: string[] = []
 
-    const fetchCategory = async (
-      category: string,
-      listPath: string,
-      infoPath: (name: string) => string
-    ) => {
-      try {
-        const names = await ovhGet(listPath) as string[]
-        for (const name of names) {
-          try {
-            const info = await ovhGet(infoPath(name)) as Record<string, unknown>
-            services.push(mapService(category, name, info))
-          } catch (e) {
-            services.push(mapService(category, name, null))
-            errors.push(`${category}/${name}: ${(e as Error).message}`)
-          }
+    // 1) Endpoint universale: copre TUTTI i prodotti dell'account con prezzi
+    let universalOk = false
+    try {
+      const ids = await ovhGet('/services') as number[]
+      universalOk = true
+      const details = await mapLimit(ids, 6, async (id) => {
+        try {
+          return await ovhGet(`/services/${id}`) as Record<string, any>
+        } catch (e) {
+          errors.push(`servizio ${id}: ${(e as Error).message}`)
+          return null
         }
-      } catch (e) {
-        errors.push(`${category}: ${(e as Error).message}`)
+      })
+      for (const d of details) {
+        if (d) services.push(mapUniversal(d))
       }
+    } catch (e) {
+      errors.push(`/services: ${(e as Error).message}`)
     }
 
-    await fetchCategory('Dominio', '/domain', (n) => `/domain/${encodeURIComponent(n)}/serviceInfos`)
-    await fetchCategory('Hosting', '/hosting/web', (n) => `/hosting/web/${encodeURIComponent(n)}/serviceInfos`)
-    await fetchCategory('VPS', '/vps', (n) => `/vps/${encodeURIComponent(n)}/serviceInfos`)
-    await fetchCategory('Server dedicato', '/dedicated/server', (n) => `/dedicated/server/${encodeURIComponent(n)}/serviceInfos`)
+    // 2) Fallback classico se l'endpoint universale non è disponibile
+    if (!universalOk || services.length === 0) {
+      const fetchCategory = async (
+        category: string,
+        listPath: string,
+        infoPath: (name: string) => string
+      ) => {
+        try {
+          const names = await ovhGet(listPath) as string[]
+          await mapLimit(names, 6, async (name) => {
+            try {
+              const info = await ovhGet(infoPath(name)) as Record<string, any>
+              services.push(mapLegacy(category, name, info))
+            } catch (e) {
+              services.push(mapLegacy(category, name, null))
+              errors.push(`${category}/${name}: ${(e as Error).message}`)
+            }
+          })
+        } catch (e) {
+          errors.push(`${category}: ${(e as Error).message}`)
+        }
+      }
+
+      await fetchCategory('Dominio', '/domain', (n) => `/domain/${encodeURIComponent(n)}/serviceInfos`)
+      await fetchCategory('Hosting Web', '/hosting/web', (n) => `/hosting/web/${encodeURIComponent(n)}/serviceInfos`)
+      await fetchCategory('VPS', '/vps', (n) => `/vps/${encodeURIComponent(n)}/serviceInfos`)
+      await fetchCategory('Server dedicato', '/dedicated/server', (n) => `/dedicated/server/${encodeURIComponent(n)}/serviceInfos`)
+      await fetchCategory('Email Pro', '/email/pro', (n) => `/email/pro/${encodeURIComponent(n)}/serviceInfos`)
+      await fetchCategory('Exchange', '/email/domain', (n) => `/email/domain/${encodeURIComponent(n)}/serviceInfos`)
+    }
 
     services.sort((a, b) => {
       if (!a.expiration) return 1
