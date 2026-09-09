@@ -33,6 +33,7 @@ import { ServiceMonitoring } from "@/components/admin/ServiceMonitoring";
 import { MaintenanceRequests } from "@/components/admin/MaintenanceRequests";
 import { ConvertTicketModal } from "@/components/admin/ConvertTicketModal";
 import { AnalyticsApiKeys } from "@/components/admin/AnalyticsApiKeys";
+import { OvhExpirations } from "@/components/admin/OvhExpirations";
 
 interface ContactTicket {
   id: string;
@@ -66,7 +67,7 @@ interface Client {
   is_active?: boolean;
 }
 
-type ViewMode = "tickets" | "clients" | "cancellations" | "monitoring" | "helpdesk" | "settings";
+type ViewMode = "tickets" | "clients" | "cancellations" | "monitoring" | "helpdesk" | "ovh" | "settings";
 
 const Admin = () => {
   const [tickets, setTickets] = useState<ContactTicket[]>([]);
