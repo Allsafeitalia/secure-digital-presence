@@ -57,6 +57,50 @@ export const GsapEffects = () => {
         card.addEventListener("mouseleave", leave);
       });
 
+      // 5. Scrubbed timelines: every section is tied to the scroll position
+      gsap.utils.toArray<HTMLElement>("main section").forEach((section) => {
+        const wrap = section.querySelector<HTMLElement>(".container");
+        if (!wrap) return;
+
+        const tl = gsap.timeline({
+          scrollTrigger: {
+            scrub: 1,
+            trigger: section,
+            start: "top 90%",
+            end: "bottom 30%",
+          },
+        });
+
+        tl.fromTo(
+          wrap,
+          { y: 60, opacity: 0.35 },
+          { y: 0, opacity: 1, ease: "power2.out", duration: 1 }
+        ).to(wrap, { y: -30, opacity: 1, ease: "none", duration: 1 });
+
+        // Grid children slide in with a scrubbed stagger
+        const items = section.querySelectorAll<HTMLElement>(
+          ":scope .container [class*='grid'] > *"
+        );
+        if (items.length) {
+          gsap.fromTo(
+            items,
+            { y: 40, opacity: 0.2 },
+            {
+              y: 0,
+              opacity: 1,
+              ease: "power2.out",
+              stagger: 0.08,
+              scrollTrigger: {
+                scrub: 1,
+                trigger: section,
+                start: "top 85%",
+                end: "center 55%",
+              },
+            }
+          );
+        }
+      });
+
       ScrollTrigger.refresh();
     });
 
